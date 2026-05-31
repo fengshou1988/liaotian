@@ -31,6 +31,10 @@
         .active { background: #f0f0f0 !important; }
         .recalled { color: #999; font-style: italic; }
         .popup-notice { position: fixed; bottom: 20px; right: 20px; background: #fff; padding: 10px 15px; border-radius: 6px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); z-index: 998; max-width: 300px; }
+        /* 账号输入框样式 */
+        .account-input { position: relative; }
+        .account-input input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .account-input datalist { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ddd; border-top: none; border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -39,10 +43,15 @@
         <div class="bg-white p-8 rounded-lg shadow-lg w-80">
             <h2 class="text-center text-xl font-bold mb-6 text-gray-700">仿QQ聊天系统</h2>
             <div class="mb-4">
-                <label class="block text-gray-600 text-sm mb-2">账号</label>
-                <select id="loginAccount" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">请选择账号</option>
-                </select>
+                <label class="block text-gray-600 text-sm mb-2">账号（可输入/可选择）</label>
+                <!-- 改为input+datalist，支持输入+下拉选择 -->
+                <div class="account-input">
+                    <input type="text" id="loginAccount" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                           placeholder="user01~user30" list="accountOptions">
+                    <datalist id="accountOptions">
+                        <!-- 动态生成选项 -->
+                    </datalist>
+                </div>
             </div>
             <div class="mb-6">
                 <label class="block text-gray-600 text-sm mb-2">密码</label>
@@ -59,7 +68,7 @@
             <div class="p-3 border-b flex items-center">
                 <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3" id="userAvatar">U</div>
                 <div>
-                    <div class="font-medium text-sm" id="currentUser">user01</div>
+                    <div class="font-medium text-sm" id="currentUserText">user01</div>
                     <div class="text-xs text-gray-500">在线</div>
                 </div>
             </div>
@@ -128,9 +137,21 @@
 
         // 初始化
         window.onload = () => {
+            // 初始化账号选项
+            const accountOptions = document.getElementById('accountOptions');
             USERS.forEach(u => {
-                loginAccount.innerHTML += `<option value="${u}">${u}</option>`;
-                contactList.innerHTML += `<div class="px-4 py-2 cursor-pointer" data-type="user" data-id="${u}">${u}</div>`;
+                const option = document.createElement('option');
+                option.value = u;
+                option.textContent = u;
+                accountOptions.appendChild(option);
+                
+                // 初始化联系人列表
+                const contactItem = document.createElement('div');
+                contactItem.className = "px-4 py-2 cursor-pointer";
+                contactItem.dataset.type = "user";
+                contactItem.dataset.id = u;
+                contactItem.textContent = u;
+                document.getElementById('contactList').appendChild(contactItem);
             });
             bindEvents();
             connectWebSocket(); // 启动连接
@@ -146,28 +167,49 @@
 
         // 绑定事件
         function bindEvents(){
-            loginBtn.onclick = login;
-            sendBtn.onclick = sendMsg;
-            messageInput.onkeydown = e => e.key=="Enter"&&!e.shiftKey&&sendMsg();
-            emojiBtn.onclick = () => emojiPanel.classList.toggle("hidden");
-            document.querySelectorAll(".emoji-item").forEach(e => e.onclick = () => messageInput.value += e.textContent);
-            imageUpload.onchange = uploadImage;
-            fileUpload.onchange = uploadFile;
-            atBtn.onclick = () => {messageInput.value += "@"; messageInput.focus()};
-            cancelRecall.onclick = () => recallModal.classList.add("hidden");
-            confirmRecall.onclick = doRecall;
-            document.querySelectorAll("[data-id]").forEach(el => el.onclick = switchChat);
+            document.getElementById('loginBtn').onclick = login;
+            document.getElementById('sendBtn').onclick = sendMsg;
+            document.getElementById('messageInput').onkeydown = e => {
+                if(e.key=="Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMsg();
+                }
+            };
+            document.getElementById('emojiBtn').onclick = () => {
+                document.getElementById('emojiPanel').classList.toggle("hidden");
+            };
+            document.querySelectorAll(".emoji-item").forEach(e => {
+                e.onclick = () => {
+                    document.getElementById('messageInput').value += e.textContent;
+                };
+            });
+            document.getElementById('imageUpload').onchange = uploadImage;
+            document.getElementById('fileUpload').onchange = uploadFile;
+            document.getElementById('atBtn').onclick = () => {
+                document.getElementById('messageInput').value += "@";
+                document.getElementById('messageInput').focus();
+            };
+            document.getElementById('cancelRecall').onclick = () => {
+                document.getElementById('recallModal').classList.add("hidden");
+            };
+            document.getElementById('confirmRecall').onclick = doRecall;
+            document.querySelectorAll("[data-id]").forEach(el => {
+                el.onclick = switchChat;
+            });
         }
 
         // 登录
         function login(){
-            let user = loginAccount.value;
-            if(!user || loginPwd.value !== PWD) return alert("账号/密码错误");
+            let user = document.getElementById('loginAccount').value.trim();
+            if(!user || !USERS.includes(user) || document.getElementById('loginPwd').value !== PWD) {
+                alert("账号必须是user01~user30，密码必须是123456");
+                return;
+            }
             currentUser = user;
-            currentUser.textContent = user;
-            userAvatar.textContent = user.slice(-2);
-            loginPage.classList.add("hidden");
-            mainPage.classList.remove("hidden");
+            document.getElementById('currentUserText').textContent = user;
+            document.getElementById('userAvatar').textContent = user.slice(-2);
+            document.getElementById('loginPage').classList.add("hidden");
+            document.getElementById('mainPage').classList.remove("hidden");
         }
 
         // 切换聊天
@@ -179,16 +221,16 @@
                 id: e.target.dataset.id,
                 name: e.target.textContent
             };
-            chatTitle.textContent = currentChat.name;
-            messageArea.innerHTML = "";
+            document.getElementById('chatTitle').textContent = currentChat.name;
+            document.getElementById('messageArea').innerHTML = "";
         }
 
         // 发送消息
         function sendMsg(){
-            let content = messageInput.value.trim();
+            let content = document.getElementById('messageInput').value.trim();
             if(!content || !currentUser) return;
             sendData({type:"text", content});
-            messageInput.value = "";
+            document.getElementById('messageInput').value = "";
         }
 
         // 统一发送数据
@@ -209,10 +251,15 @@
         // 接收消息
         function handleMsg(msg){
             if(msg.from === currentUser) return;
-            // 匹配当前聊天/群聊，显示消息
-            if(msg.to === currentChat.id || (msg.chatType==="group" && currentChat.id===msg.to)){
+            // 群聊消息：所有群成员都能收到
+            // 私聊消息：只有目标用户能收到
+            const isGroupMsg = msg.chatType === "group";
+            const isTargetUser = msg.to === currentUser;
+            const isCurrentGroup = msg.to === currentChat.id && isGroupMsg;
+            
+            if (isCurrentGroup || isTargetUser) {
                 renderMsg(msg, false);
-                msgSound.play().catch(()=>{});
+                document.getElementById('msgSound').play().catch(()=>{});
                 showNotice(msg.from, msg.content);
             }
         }
@@ -239,38 +286,55 @@
                     ${isSelf && !msg.recalled ? `<div class="text-right mt-1"><span class="text-xs text-gray-500 cursor-pointer recall-btn" data-id="${msg.id}">撤回</span></div>` : ""}
                 </div>
             `;
-            messageArea.appendChild(div);
-            messageArea.scrollTop = messageArea.scrollHeight;
+            document.getElementById('messageArea').appendChild(div);
+            document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
 
-            div.querySelector(".recall-btn")?.onclick = () => {
-                pendingRecall = msg;
-                recallModal.classList.remove("hidden");
-            };
+            const recallBtn = div.querySelector(".recall-btn");
+            if (recallBtn) {
+                recallBtn.onclick = () => {
+                    pendingRecall = msg;
+                    document.getElementById('recallModal').classList.remove("hidden");
+                };
+            }
         }
 
         // 撤回消息
         function doRecall(){
-            if(pendingRecall) sendData({...pendingRecall, recalled:true});
-            recallModal.classList.add("hidden");
-            messageArea.innerHTML = "";
+            if(pendingRecall) {
+                sendData({...pendingRecall, recalled:true});
+            }
+            document.getElementById('recallModal').classList.add("hidden");
+            document.getElementById('messageArea').innerHTML = "";
         }
 
         // 上传图片
         function uploadImage(e){
+            let file = e.target.files[0];
+            if(!file) return;
             let reader = new FileReader();
-            reader.onload = () => sendData({type:"image", content:reader.result});
-            reader.readAsDataURL(e.target.files[0]);
+            reader.onload = () => {
+                sendData({type:"image", content:reader.result});
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
         }
 
         // 上传文件
         function uploadFile(e){
             let file = e.target.files[0];
+            if(!file) return;
             sendData({type:"file", content:{name:file.name}});
+            e.target.value = "";
         }
 
         // 桌面通知
         function showNotice(from, content){
-            if(document.hidden) new Notification(from, {body:content});
+            if(Notification.permission === 'granted' && document.hidden) {
+                new Notification(from, {body:content});
+            } else if(Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+            // 页面内弹窗
             let p = document.createElement("div");
             p.className = "popup-notice";
             p.innerHTML = `<b>${from}</b><br>${content}`;
