@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QQ聊天室 - 跨设备互通</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif}
     body{background:#e5e6eb;height:100vh;overflow:hidden}
@@ -17,6 +16,8 @@
     .input-item input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;outline:none;font-size:15px}
     .login-btn{width:100%;padding:12px;background:#12b7f5;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer}
     .tip{color:#ff4d4f;font-size:12px;text-align:center;margin-top:8px}
+    /* 状态提示 */
+    .status-bar{position:fixed;top:0;left:0;width:100%;height:25px;line-height:25px;background:#333;color:#fff;font-size:12px;text-align:center;z-index:999}
     /* QQ三栏主布局 */
     .main{display:flex;height:100vh;display:none}
     /* 左侧导航栏 */
@@ -37,6 +38,7 @@
     .s-info{flex:1;margin-left:10px;overflow:hidden}
     .s-name{font-size:14px;font-weight:bold;white-space:nowrap;overflow:hidden}
     .s-msg{font-size:12px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden}
+    .unread{background:red;color:white;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;font-size:11px;margin-left:5px}
     /* 右侧聊天窗口 */
     .chat-box{flex:1;display:flex;flex-direction:column;background:#fff}
     .chat-title{height:50px;line-height:50px;padding:0 20px;font-weight:bold;border-bottom:1px solid #eee}
@@ -69,8 +71,11 @@
   </style>
 </head>
 <body>
+  <!-- 状态提示栏 -->
+  <div class="status-bar" id="statusBar">正在连接服务器...</div>
+
   <!-- 音频提示 -->
-  <audio id="msgSound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQGAACNngU+fNlSAU5N1XZdSaFn3iJQqVpKNXJlV5Hl/lTY7q+aoWz5hZVs9QgA="></audio>
+  <audio id="msgSound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQGAACNngU+fNlSAU5N1XZdSaFn3iJQqVpKNXJlV5Hl/lTY7q+aoWz5hZVs9QgA=">
 
   <!-- 登录弹窗 -->
   <div class="login" id="loginBox">
@@ -78,11 +83,11 @@
       <div class="login-title">账号登录</div>
       <div class="input-item">
         <label>账号</label>
-        <input type="text" id="account" placeholder="user01~user30">
+        <input type="text" id="account" placeholder="user01~user30" value="user01">
       </div>
       <div class="input-item">
         <label>密码</label>
-        <input type="password" id="password" placeholder="密码：123456">
+        <input type="password" id="password" placeholder="密码：123456" value="123456">
       </div>
       <div class="tip" id="loginTip"></div>
       <button class="login-btn" onclick="login()">登 录</button>
@@ -131,8 +136,9 @@
   <div class="emoji-box" id="emojiBox"></div>
 
   <script>
-    // 核心配置：公共WebSocket服务器（跨设备/跨网络全球互通）
-    const socket = io('wss://socketsbay.com/wss/v2/1/qq-chat-123/', { transports: ['websocket'] });
+    // 核心配置：使用公共WebSocket服务器（稳定跨设备通信）
+    let ws;
+    const WS_URL = 'wss://socketsbay.com/wss/v2/1/qq-chat-123/';
     
     // 固定30个账号
     const users = [];
@@ -145,10 +151,12 @@
     let currentUser = null;
     let currentTab = 'group';
     let currentSession = null;
-    let msgId = 0;
+    let messageStore = JSON.parse(localStorage.getItem('chatMessages')) || {};
+    let unreadCount = JSON.parse(localStorage.getItem('unreadCount')) || {};
     const msgSound = document.getElementById('msgSound');
     
     // DOM元素
+    const statusBar = document.getElementById('statusBar');
     const loginBox = document.getElementById('loginBox');
     const mainBox = document.getElementById('mainBox');
     const account = document.getElementById('account');
@@ -160,6 +168,76 @@
     const chatMain = document.getElementById('chatMain');
     const msgInput = document.getElementById('msgInput');
     const emojiBox = document.getElementById('emojiBox');
+
+    // 初始化WebSocket连接
+    function initWebSocket() {
+      statusBar.textContent = '正在连接服务器...';
+      statusBar.style.background = '#333';
+      
+      // 关闭旧连接
+      if (ws) {
+        ws.close();
+      }
+      
+      // 创建新连接
+      ws = new WebSocket(WS_URL);
+      
+      // 连接成功
+      ws.onopen = function() {
+        statusBar.textContent = '已连接，可正常聊天';
+        statusBar.style.background = '#2ecc71';
+        console.log('WebSocket连接成功');
+      };
+      
+      // 接收消息
+      ws.onmessage = function(event) {
+        try {
+          const msg = JSON.parse(event.data);
+          console.log('收到消息:', msg);
+          
+          // 存储消息
+          if (!messageStore[msg.to]) {
+            messageStore[msg.to] = [];
+          }
+          messageStore[msg.to].push(msg);
+          localStorage.setItem('chatMessages', JSON.stringify(messageStore));
+          
+          // 非当前会话增加未读计数
+          if (msg.to !== currentSession) {
+            unreadCount[msg.to] = (unreadCount[msg.to] || 0)+1;
+            localStorage.setItem('unreadCount', JSON.stringify(unreadCount));
+            renderSessionList();
+          }
+          
+          // 显示消息（当前会话或群聊）
+          if (msg.to === currentSession || 
+              (msg.to.includes('group') && currentTab === 'group') ||
+              (msg.to === currentUser && currentTab === 'private')) {
+            renderMsg(msg, false);
+            playSound();
+            showNotice(msg.from, msg.content);
+          }
+        } catch (e) {
+          console.error('解析消息失败:', e, event.data);
+        }
+      };
+      
+      // 连接错误
+      ws.onerror = function(error) {
+        statusBar.textContent = '连接错误，正在重试...';
+        statusBar.style.background = '#e67e22';
+        console.error('WebSocket错误:', error);
+      };
+      
+      // 连接关闭
+      ws.onclose = function() {
+        statusBar.textContent = '连接已断开，正在重连...';
+        statusBar.style.background = '#e74c3c';
+        console.log('WebSocket连接关闭');
+        // 自动重连
+        setTimeout(initWebSocket, 3000);
+      };
+    }
 
     // 初始化表情
     const emojis = ['😀','😃','😄','😁','😂','😊','😍','🥰','👍','👋','🎉','❤️','🐱','🎵','✅','🚀','🙏','😎','😢','😡'];
@@ -184,6 +262,7 @@
       myAvatar.innerText = currentUser.slice(-2);
       renderSessionList();
       requestNotice();
+      initWebSocket(); // 登录后才初始化连接
     }
 
     // 切换群聊/私聊
@@ -208,7 +287,20 @@
         const dom = document.createElement('div');
         dom.className='session-item';
         dom.onclick=()=>switchSession(item.id,item.name);
-        dom.innerHTML=`<div class="s-avatar">${item.name.slice(-2)}</div><div class="s-info"><div class="s-name">${item.name}</div><div class="s-msg">最近消息</div></div>`;
+        // 最后一条消息
+        const lastMsg = messageStore[item.id] && messageStore[item.id].length > 0 
+          ? messageStore[item.id][messageStore[item.id].length-1].content 
+          : '最近消息';
+        // 未读计数
+        const unread = unreadCount[item.id] > 0 
+          ? `<span class="unread">${unreadCount[item.id]}</span>` 
+          : '';
+        
+        dom.innerHTML=`<div class="s-avatar">${item.name.slice(-2)}</div>
+                      <div class="s-info">
+                        <div class="s-name">${item.name}${unread}</div>
+                        <div class="s-msg">${lastMsg}</div>
+                      </div>`;
         sessionList.appendChild(dom);
       });
     }
@@ -217,15 +309,38 @@
     function switchSession(id,name){
       currentSession = id;
       chatTitle.innerText=name;
+      // 清除未读计数
+      unreadCount[id] = 0;
+      localStorage.setItem('unreadCount', JSON.stringify(unreadCount));
+      // 高亮当前会话
       document.querySelectorAll('.session-item').forEach(i=>i.className='session-item');
       event.currentTarget.className='session-item active';
-      chatMain.innerHTML='<div style="text-align:center;color:#999">开始聊天吧</div>';
+      // 渲染历史消息
+      renderChatHistory();
+    }
+
+    // 渲染聊天历史
+    function renderChatHistory() {
+      chatMain.innerHTML='';
+      const messages = messageStore[currentSession] || [];
+      if (messages.length === 0) {
+        chatMain.innerHTML='<div style="text-align:center;color:#999">开始聊天吧</div>';
+        return;
+      }
+      messages.forEach(msg => {
+        renderMsg(msg, msg.from === currentUser);
+      });
+      chatMain.scrollTop=chatMain.scrollHeight;
     }
 
     // 发送消息
     function sendMsg(){
       const content = msgInput.value.trim();
-      if(!content || !currentSession)return;
+      if(!content || !currentSession || !ws || ws.readyState !== WebSocket.OPEN){
+        loginTip.innerText = ws && ws.readyState !== WebSocket.OPEN ? '连接未就绪，请稍候' : '请输入消息并选择会话';
+        setTimeout(() => loginTip.innerText = '', 2000);
+        return;
+      }
       sendData({type:'text',content:content});
       msgInput.value='';
     }
@@ -240,8 +355,18 @@
         content:data.content,
         time:new Date().toLocaleTimeString()
       };
-      socket.send(JSON.stringify(msg));
-      renderMsg(msg,true);
+      
+      // 发送到WebSocket
+      ws.send(JSON.stringify(msg));
+      
+      // 本地存储并显示
+      if (!messageStore[currentSession]) {
+        messageStore[currentSession] = [];
+      }
+      messageStore[currentSession].push(msg);
+      localStorage.setItem('chatMessages', JSON.stringify(messageStore));
+      renderMsg(msg, true);
+      renderSessionList();
     }
 
     // 渲染消息
@@ -263,26 +388,27 @@
       chatMain.scrollTop=chatMain.scrollHeight;
     }
 
-    // 接收消息
-    socket.on('message',data=>{
-      const msg = JSON.parse(data);
-      if(msg.from===currentUser)return;
-      if(msg.to===currentSession || msg.to===currentUser || (msg.to.includes('group') && currentTab==='group')){
-        renderMsg(msg,false);
-        playSound();
-        showNotice(msg.from,msg.content);
-      }
-    });
-
     // @好友
     function atUser(){
-      msgInput.value += currentTab==='group'?'@全体成员 ': `@${currentSession} `;
+      if (currentTab === 'group') {
+        msgInput.value += '@全体成员 ';
+      } else if (currentSession) {
+        msgInput.value += `@${currentSession} `;
+      }
       msgInput.focus();
     }
 
     // 撤回消息
     function recallMsg(){
-      sendData({type:'recall',content:''});
+      if (!currentSession || !messageStore[currentSession] || messageStore[currentSession].length === 0) return;
+      // 撤回最后一条自己发送的消息
+      const lastMsg = messageStore[currentSession].pop();
+      if (lastMsg && lastMsg.from === currentUser) {
+        localStorage.setItem('chatMessages', JSON.stringify(messageStore));
+        sendData({type:'recall',content:''});
+        renderChatHistory();
+        renderSessionList();
+      }
     }
 
     // 已读
@@ -293,7 +419,7 @@
     // 文件/图片发送
     document.getElementById('fileInput').onchange=e=>{
       const file = e.target.files[0];
-      if(!file)return;
+      if(!file || !currentSession || !ws || ws.readyState !== WebSocket.OPEN) return;
       if(file.type.startsWith('image/')){
         const reader = new FileReader();
         reader.onload=()=>sendData({type:'image',content:reader.result});
@@ -342,7 +468,14 @@
         myAvatar.innerText=user.slice(-2);
         renderSessionList();
         requestNotice();
+        initWebSocket();
       }
+    };
+
+    // 页面关闭前保存数据
+    window.onbeforeunload=()=>{
+      localStorage.setItem('chatMessages', JSON.stringify(messageStore));
+      localStorage.setItem('unreadCount', JSON.stringify(unreadCount));
     };
   </script>
 </body>
