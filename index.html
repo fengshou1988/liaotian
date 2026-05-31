@@ -38,18 +38,15 @@
 <body>
     <div class="header">内部私密聊天</div>
 
-    <!-- 登录面板（密码+昵称） -->
     <div class="login-wrap" id="loginPanel">
         <input type="text" id="userNick" placeholder="输入你的昵称">
         <input type="password" id="userPwd" placeholder="输入聊天密码">
         <button onclick="login()">进入聊天</button>
     </div>
 
-    <!-- 聊天区域 -->
     <div class="chat-box hide" id="chatPanel"></div>
     <div class="tip hide" id="loadTip">消息同步中...</div>
 
-    <!-- 输入区域 -->
     <div class="input-wrap hide" id="inputPanel">
         <input type="text" id="nick" placeholder="昵称" readonly>
         <input type="text" id="msgInput" placeholder="输入消息，回车发送">
@@ -57,22 +54,23 @@
     </div>
 
 <script>
-// ===================== 【这里必须改成你自己的信息！】=====================
+// ========== 【务必修改为你自己的信息】 ==========
 const GITHUB_USER = "你的GitHub用户名";
 const GITHUB_REPO = "你的仓库名称";
 const GITHUB_TOKEN = "你的PAT令牌";
-const CHAT_PASSWORD = "123456"; // 自定义内部聊天密码，只告诉好友
-// ======================================================================
+const CHAT_PASSWORD = "123456";
+// ==============================================
 
 const FILE_PATH = "chat.json";
 const API_URL = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
 let currentNick = "";
-let fileSha = "";       // GitHub 文件标识，更新文件必须用到
-let msgList = [];      // 本地消息列表
+let fileSha = "";
+let msgList = [];
+let isSending = false; // 防重复点击
 
-// 页面加载后自动拉取消息
+// 定时自动拉取消息
 window.onload = function(){
-    setInterval(fetchMsg, 2500); // 每2.5秒自动同步一次消息，延迟低、不超限
+    setInterval(fetchMsg, 3000);
 }
 
 // 登录验证
@@ -84,21 +82,19 @@ function login(){
         return;
     }
     if(pwd !== CHAT_PASSWORD){
-        alert("密码错误，无法进入！");
+        alert("密码错误！");
         return;
     }
     currentNick = nick;
-    // 切换界面
     document.getElementById("loginPanel").classList.add("hide");
     document.getElementById("chatPanel").classList.remove("hide");
     document.getElementById("loadTip").classList.remove("hide");
     document.getElementById("inputPanel").classList.remove("hide");
     document.getElementById("nick").value = nick;
-    // 首次加载消息
     fetchMsg();
 }
 
-// 从 GitHub 拉取最新消息
+// 拉取最新消息 + 最新sha
 async function fetchMsg(){
     try{
         const res = await fetch(API_URL, {
@@ -107,20 +103,19 @@ async function fetchMsg(){
                 "Accept": "application/vnd.github.v3+json"
             }
         });
+        if(!res.ok) throw new Error("文件读取失败");
         const data = await res.json();
         fileSha = data.sha;
-        // Base64 解码内容
         const content = decodeURIComponent(escape(atob(data.content)));
         msgList = JSON.parse(content);
         renderMsg();
-        document.getElementById("loadTip").innerText = "消息已同步";
+        document.getElementById("loadTip").innerText = "同步正常";
     }catch(e){
-        document.getElementById("loadTip").innerText = "同步失败，请检查网络";
-        console.error(e);
+        document.getElementById("loadTip").innerText = "同步异常，请检查网络/令牌";
     }
 }
 
-// 渲染聊天界面
+// 渲染聊天
 function renderMsg(){
     const box = document.getElementById("chatPanel");
     box.innerHTML = "";
@@ -133,30 +128,34 @@ function renderMsg(){
             </div>
         `;
     });
-    // 滚动到底部
     box.scrollTop = box.scrollHeight;
 }
 
-// 发送消息（上传到 GitHub 文件）
+// 发送消息（核心修复：先发请求拿最新sha，再提交）
 async function sendMessage(){
+    if(isSending) return;
     let input = document.getElementById("msgInput");
     let content = input.value.trim();
     if(!content) return;
 
+    isSending = true;
+    document.getElementById("loadTip").innerText = "正在发送...";
+
+    // 第一步：强制拉取最新文件和sha，解决版本冲突
+    await fetchMsg();
+
     // 组装新消息
     let now = new Date();
     let timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`;
-    let newMsg = {
+    msgList.push({
         nick: currentNick,
         content: content,
         time: timeStr
-    };
-    msgList.push(newMsg);
+    });
 
     try{
-        // 编码内容
+        // 编码并提交
         let updateContent = btoa(unescape(encodeURIComponent(JSON.stringify(msgList))));
-        // 提交更新到 GitHub 文件
         await fetch(API_URL, {
             method: "PUT",
             headers: {
@@ -171,14 +170,16 @@ async function sendMessage(){
             })
         });
         input.value = "";
-        fetchMsg(); // 立即刷新
+        document.getElementById("loadTip").innerText = "发送成功";
     }catch(e){
-        alert("发送失败，请稍后再试");
-        console.error(e);
+        alert("发送失败！请检查：令牌/用户名/仓库名 是否正确，或稍后重试");
+        document.getElementById("loadTip").innerText = "发送失败";
     }
+
+    isSending = false;
 }
 
-// 回车快捷发送
+// 回车发送
 document.getElementById("msgInput").addEventListener("keydown", function(e){
     if(e.key === "Enter") sendMessage();
 });
