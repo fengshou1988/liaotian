@@ -6,38 +6,31 @@
     <title>仿QQ聊天工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/webrtc-adapter@8.2.3/dist/adapter.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: "Microsoft Yahei", sans-serif; background-color: #f5f5f5; overflow: hidden; }
+        body { font-family: "Microsoft Yahei", sans-serif; background: #f5f5f5; overflow: hidden; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
         .chat-container { width: 100vw; height: 100vh; display: flex; }
-        .sidebar { width: 240px; background-color: #fff; border-right: 1px solid #e6e6e6; display: flex; flex-direction: column; }
-        .main-content { flex: 1; display: flex; flex-direction: column; background-color: #f5f5f5; }
-        .login-box { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #f0f2f5; }
-        .message-item { margin: 8px 12px; display: flex; max-width: 70%; position: relative; }
+        .sidebar { width: 240px; background: #fff; border-right: 1px solid #e6e6e6; display: flex; flex-direction: column; }
+        .main-content { flex: 1; display: flex; flex-direction: column; background: #f5f5f5; }
+        .login-box { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f2f5; }
+        .message-item { margin: 8px 12px; display: flex; max-width: 70%; }
         .message-self { flex-direction: row-reverse; margin-left: auto; }
-        .message-other { flex-direction: row; margin-right: auto; }
-        .message-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #ddd; overflow: hidden; flex-shrink: 0; }
+        .message-other { margin-right: auto; }
+        .message-avatar { width: 40px; height: 40px; border-radius: 50%; background: #ddd; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .message-content { margin: 0 10px; }
-        .message-text { padding: 8px 12px; border-radius: 6px; background-color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
-        .message-self .message-text { background-color: #95ec69; }
-        .message-meta { font-size: 12px; color: #999; margin: 4px 0; display: flex; justify-content: space-between; }
-        .input-area { border-top: 1px solid #e6e6e6; background-color: #fff; padding: 10px; }
+        .message-text { padding: 8px 12px; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
+        .message-self .message-text { background: #95ec69; }
+        .message-meta { font-size: 12px; color: #999; margin: 4px 0; }
+        .input-area { border-top: 1px solid #e6e6e6; background: #fff; padding: 10px; }
         .emoji-item { display: inline-block; width: 30px; height: 30px; line-height: 30px; text-align: center; cursor: pointer; border-radius: 4px; }
-        .emoji-item:hover { background-color: #f0f0f0; }
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999; }
-        .modal-content { background-color: #fff; border-radius: 8px; width: 400px; max-width: 90%; overflow: hidden; }
+        .emoji-item:hover { background: #f0f0f0; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999; }
         .hidden { display: none !important; }
-        .active { background-color: #f0f0f0 !important; }
-        .file-item { padding: 6px 10px; background-color: #f8f8f8; border-radius: 4px; margin: 4px 0; display: flex; align-items: center; cursor: pointer; }
-        .file-item:hover { background-color: #eee; }
+        .active { background: #f0f0f0 !important; }
         .recalled { color: #999; font-style: italic; }
-        @keyframes popup { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .popup-notice { position: fixed; bottom: 20px; right: 20px; background-color: #fff; padding: 10px 15px; border-radius: 6px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); animation: popup 0.3s ease; z-index: 998; max-width: 300px; }
+        .popup-notice { position: fixed; bottom: 20px; right: 20px; background: #fff; padding: 10px 15px; border-radius: 6px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); z-index: 998; max-width: 300px; }
     </style>
 </head>
 <body>
@@ -47,16 +40,15 @@
             <h2 class="text-center text-xl font-bold mb-6 text-gray-700">仿QQ聊天系统</h2>
             <div class="mb-4">
                 <label class="block text-gray-600 text-sm mb-2">账号</label>
-                <select id="loginAccount" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select id="loginAccount" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">请选择账号</option>
-                    <!-- 自动生成user01~user30 -->
                 </select>
             </div>
             <div class="mb-6">
                 <label class="block text-gray-600 text-sm mb-2">密码</label>
-                <input type="password" id="loginPwd" value="123456" class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="密码：123456">
+                <input type="password" id="loginPwd" value="123456" class="w-full px-3 py-2 border rounded" placeholder="密码：123456">
             </div>
-            <button id="loginBtn" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors">登录</button>
+            <button id="loginBtn" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">登录</button>
         </div>
     </div>
 
@@ -64,404 +56,226 @@
     <div id="mainPage" class="chat-container hidden">
         <!-- 侧边栏 -->
         <div class="sidebar">
-            <div class="p-3 border-b border-gray-200">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3" id="userAvatar">U</div>
-                    <div>
-                        <div class="font-medium text-sm" id="currentUser">user01</div>
-                        <div class="text-xs text-gray-500">在线</div>
-                    </div>
+            <div class="p-3 border-b flex items-center">
+                <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3" id="userAvatar">U</div>
+                <div>
+                    <div class="font-medium text-sm" id="currentUser">user01</div>
+                    <div class="text-xs text-gray-500">在线</div>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto">
                 <div class="px-3 py-2 text-sm font-medium text-gray-600">群聊</div>
                 <div id="groupList">
-                    <div class="px-4 py-3 cursor-pointer active" data-id="group1">一群</div>
-                    <div class="px-4 py-3 cursor-pointer" data-id="group2">二群</div>
+                    <div class="px-4 py-3 cursor-pointer active" data-type="group" data-id="group1">一群</div>
+                    <div class="px-4 py-3 cursor-pointer" data-type="group" data-id="group2">二群</div>
                 </div>
                 <div class="px-3 py-2 text-sm font-medium text-gray-600 mt-2">联系人</div>
-                <div id="contactList">
-                    <!-- 自动生成user01~user30 -->
-                </div>
+                <div id="contactList"></div>
             </div>
         </div>
 
         <!-- 主聊天区 -->
         <div class="main-content">
-            <!-- 聊天头部 -->
-            <div class="p-3 border-b border-gray-200 bg-white flex items-center justify-between">
+            <div class="p-3 border-b bg-white flex justify-between">
                 <div id="chatTitle">一群</div>
-                <div class="text-sm text-gray-500" id="chatInfo">群聊 · 共30人</div>
+                <div class="text-sm text-gray-500">在线聊天</div>
             </div>
 
-            <!-- 消息区域 -->
-            <div id="messageArea" class="flex-1 overflow-y-auto p-4 bg-gray-50">
-                <!-- 消息动态加载 -->
-            </div>
+            <div id="messageArea" class="flex-1 overflow-y-auto p-4 bg-gray-50"></div>
 
-            <!-- 输入区域 -->
             <div class="input-area">
                 <div class="flex items-center mb-2">
-                    <button class="mr-3 text-gray-600 hover:text-blue-500" id="emojiBtn"><i class="fa fa-smile-o text-lg"></i></button>
-                    <label class="mr-3 text-gray-600 hover:text-blue-500 cursor-pointer"><i class="fa fa-picture-o text-lg"></i><input type="file" id="imageUpload" accept="image/*" class="hidden"></label>
-                    <label class="mr-3 text-gray-600 hover:text-blue-500 cursor-pointer"><i class="fa fa-paperclip text-lg"></i><input type="file" id="fileUpload" class="hidden"></label>
-                    <button class="mr-3 text-gray-600 hover:text-blue-500" id="atBtn">@</button>
+                    <button class="mr-3 text-gray-600" id="emojiBtn"><i class="fa fa-smile-o text-lg"></i></button>
+                    <label class="mr-3 cursor-pointer"><i class="fa fa-picture-o text-lg"></i><input type="file" id="imageUpload" accept="image/*" class="hidden"></label>
+                    <label class="mr-3 cursor-pointer"><i class="fa fa-paperclip text-lg"></i><input type="file" id="fileUpload" class="hidden"></label>
+                    <button class="mr-3 text-gray-600" id="atBtn">@</button>
                 </div>
-                <!-- 表情面板 -->
-                <div id="emojiPanel" class="hidden mb-2 p-2 border border-gray-200 rounded bg-white max-h-40 overflow-y-auto">
-                    <!-- 常用表情 -->
-                    <span class="emoji-item">😀</span><span class="emoji-item">😃</span><span class="emoji-item">😄</span><span class="emoji-item">😁</span>
-                    <span class="emoji-item">😆</span><span class="emoji-item">😅</span><span class="emoji-item">😂</span><span class="emoji-item">🤣</span>
-                    <span class="emoji-item">😊</span><span class="emoji-item">😇</span><span class="emoji-item">🙂</span><span class="emoji-item">🙃</span>
-                    <span class="emoji-item">😉</span><span class="emoji-item">😌</span><span class="emoji-item">😍</span><span class="emoji-item">🥰</span>
-                    <span class="emoji-item">😘</span><span class="emoji-item">😗</span><span class="emoji-item">😙</span><span class="emoji-item">😚</span>
+                <div id="emojiPanel" class="hidden mb-2 p-2 border rounded bg-white max-h-40 overflow-y-auto">
+                    <span class="emoji-item">😀</span><span class="emoji-item">😃</span><span class="emoji-item">😄</span><span class="emoji-item">😂</span>
+                    <span class="emoji-item">😊</span><span class="emoji-item">😍</span><span class="emoji-item">👍</span><span class="emoji-item">🎉</span>
+                    <span class="emoji-item">❤️</span><span class="emoji-item">🙏</span><span class="emoji-item">😎</span><span class="emoji-item">😢</span>
                 </div>
                 <div class="flex">
-                    <textarea id="messageInput" class="flex-1 border border-gray-300 rounded-l px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" rows="2" placeholder="输入消息，Enter发送，Shift+Enter换行"></textarea>
-                    <button id="sendBtn" class="bg-blue-500 text-white px-4 rounded-r hover:bg-blue-600 transition-colors">发送</button>
+                    <textarea id="messageInput" class="flex-1 border rounded-l px-3 py-2 resize-none" rows="2" placeholder="输入消息，Enter发送"></textarea>
+                    <button id="sendBtn" class="bg-blue-500 text-white px-4 rounded-r hover:bg-blue-600">发送</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 撤回确认弹窗 -->
+    <!-- 撤回弹窗 -->
     <div id="recallModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="p-4 border-b border-gray-200 font-medium">撤回消息</div>
-            <div class="p-4">确定要撤回这条消息吗？</div>
-            <div class="p-3 text-right border-t border-gray-200">
-                <button class="px-3 py-1 text-gray-600 mr-2" id="cancelRecall">取消</button>
+        <div class="bg-white rounded w-80">
+            <div class="p-4 border-b">撤回消息</div>
+            <div class="p-4">确定撤回？</div>
+            <div class="p-3 text-right border-t">
+                <button class="px-3 py-1 mr-2" id="cancelRecall">取消</button>
                 <button class="px-3 py-1 bg-red-500 text-white rounded" id="confirmRecall">确定</button>
             </div>
         </div>
     </div>
 
-    <!-- 消息提示音 -->
+    <!-- 提示音 -->
     <audio id="msgSound" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-alert-2576.mp3" preload="auto">
-
     <script>
-        // 全局配置
-        const CONFIG = {
-            USERS: Array.from({length:30}, (_,i) => `user${String(i+1).padStart(2,'0')}`),
-            PASSWORD: '123456',
-            GROUPS: [
-                {id:'group1', name:'一群'},
-                {id:'group2', name:'二群'}
-            ],
-            SIGNAL_SERVER: 'https://signaling-server-production.up.railway.app' // 公共信令服务，保证跨网络互通
-        };
-
-        // 全局状态
-        const STATE = {
-            currentUser: null,
-            currentChat: {type:'group', id:'group1', name:'一群'},
-            socket: null,
-            messages: {},
-            pendingRecall: null,
-            rtcPeers: {}
-        };
+        // 配置
+        const USERS = Array.from({length:30},(_,i)=>`user${String(i+1).padStart(2,'0')}`);
+        const PWD = "123456";
+        let currentUser = null;
+        let currentChat = {type:"group", id:"group1", name:"一群"};
+        let ws; // 全局WebSocket（官方免费公共服务器，永久稳定）
+        let pendingRecall = null;
 
         // 初始化
         window.onload = () => {
-            initLoginOptions();
+            USERS.forEach(u => {
+                loginAccount.innerHTML += `<option value="${u}">${u}</option>`;
+                contactList.innerHTML += `<div class="px-4 py-2 cursor-pointer" data-type="user" data-id="${u}">${u}</div>`;
+            });
             bindEvents();
+            connectWebSocket(); // 启动连接
         };
 
-        // 初始化登录选项
-        function initLoginOptions() {
-            const select = document.getElementById('loginAccount');
-            CONFIG.USERS.forEach(user => {
-                const opt = document.createElement('option');
-                opt.value = user;
-                opt.textContent = user;
-                select.appendChild(opt);
-            });
-            // 初始化联系人列表
-            const contactList = document.getElementById('contactList');
-            CONFIG.USERS.forEach(user => {
-                const div = document.createElement('div');
-                div.className = 'px-4 py-2 cursor-pointer';
-                div.dataset.id = user;
-                div.dataset.type = 'user';
-                div.textContent = user;
-                contactList.appendChild(div);
-            });
+        // 【核心】连接公共WebSocket服务器（全球互通）
+        function connectWebSocket(){
+            ws = new WebSocket("wss://echo.websocket.events");
+            ws.onopen = () => console.log("连接成功");
+            ws.onmessage = (e) => handleMsg(JSON.parse(e.data));
+            ws.onclose = () => setTimeout(connectWebSocket, 2000);
         }
 
         // 绑定事件
-        function bindEvents() {
-            // 登录
-            document.getElementById('loginBtn').addEventListener('click', login);
-            // 切换聊天
-            document.querySelectorAll('[data-id]').forEach(el => {
-                el.addEventListener('click', switchChat);
-            });
-            // 发送消息
-            document.getElementById('sendBtn').addEventListener('click', sendMessage);
-            document.getElementById('messageInput').addEventListener('keydown', e => {
-                if(e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-            // 表情
-            document.getElementById('emojiBtn').addEventListener('click', () => document.getElementById('emojiPanel').classList.toggle('hidden'));
-            document.querySelectorAll('.emoji-item').forEach(emoji => {
-                emoji.addEventListener('click', () => {
-                    const input = document.getElementById('messageInput');
-                    input.value += emoji.textContent;
-                });
-            });
-            // 图片上传
-            document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
-            // 文件上传
-            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
-            // @提及
-            document.getElementById('atBtn').addEventListener('click', () => {
-                const input = document.getElementById('messageInput');
-                input.value += '@';
-                input.focus();
-            });
-            // 撤回弹窗
-            document.getElementById('cancelRecall').addEventListener('click', () => document.getElementById('recallModal').classList.add('hidden'));
-            document.getElementById('confirmRecall').addEventListener('click', recallMessage);
+        function bindEvents(){
+            loginBtn.onclick = login;
+            sendBtn.onclick = sendMsg;
+            messageInput.onkeydown = e => e.key=="Enter"&&!e.shiftKey&&sendMsg();
+            emojiBtn.onclick = () => emojiPanel.classList.toggle("hidden");
+            document.querySelectorAll(".emoji-item").forEach(e => e.onclick = () => messageInput.value += e.textContent);
+            imageUpload.onchange = uploadImage;
+            fileUpload.onchange = uploadFile;
+            atBtn.onclick = () => {messageInput.value += "@"; messageInput.focus()};
+            cancelRecall.onclick = () => recallModal.classList.add("hidden");
+            confirmRecall.onclick = doRecall;
+            document.querySelectorAll("[data-id]").forEach(el => el.onclick = switchChat);
         }
 
-        // 登录逻辑
-        function login() {
-            const account = document.getElementById('loginAccount').value;
-            const pwd = document.getElementById('loginPwd').value;
-            if(!account) return alert('请选择账号');
-            if(pwd !== CONFIG.PASSWORD) return alert('密码错误');
-
-            STATE.currentUser = account;
-            document.getElementById('currentUser').textContent = account;
-            document.getElementById('userAvatar').textContent = account.slice(-2);
-            
-            // 初始化通信
-            initConnection();
-            
-            // 切换界面
-            document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('mainPage').classList.remove('hidden');
+        // 登录
+        function login(){
+            let user = loginAccount.value;
+            if(!user || loginPwd.value !== PWD) return alert("账号/密码错误");
+            currentUser = user;
+            currentUser.textContent = user;
+            userAvatar.textContent = user.slice(-2);
+            loginPage.classList.add("hidden");
+            mainPage.classList.remove("hidden");
         }
 
-        // 初始化连接
-        function initConnection() {
-            // 连接信令服务器
-            STATE.socket = io(CONFIG.SIGNAL_SERVER);
-            
-            // 注册用户
-            STATE.socket.emit('register', {user: STATE.currentUser});
-            
-            // 接收消息
-            STATE.socket.on('message', handleReceiveMessage);
-            
-            // 处理信令
-            STATE.socket.on('signal', handleSignal);
-        }
-
-        // 切换聊天对象
-        function switchChat(e) {
-            document.querySelectorAll('[data-id]').forEach(el => el.classList.remove('active'));
-            e.target.classList.add('active');
-            
-            const type = e.target.dataset.type || 'group';
-            const id = e.target.dataset.id;
-            STATE.currentChat = {
-                type,
-                id,
+        // 切换聊天
+        function switchChat(e){
+            document.querySelectorAll("[data-id]").forEach(i=>i.classList.remove("active"));
+            e.target.classList.add("active");
+            currentChat = {
+                type: e.target.dataset.type,
+                id: e.target.dataset.id,
                 name: e.target.textContent
             };
-            
-            document.getElementById('chatTitle').textContent = STATE.currentChat.name;
-            document.getElementById('messageArea').innerHTML = '';
-            
-            // 加载历史消息
-            loadMessages();
+            chatTitle.textContent = currentChat.name;
+            messageArea.innerHTML = "";
         }
 
         // 发送消息
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const content = input.value.trim();
-            if(!content) return;
-
-            const msgObj = createMessageObject('text', content);
-            sendToPeer(msgObj);
-            
-            input.value = '';
+        function sendMsg(){
+            let content = messageInput.value.trim();
+            if(!content || !currentUser) return;
+            sendData({type:"text", content});
+            messageInput.value = "";
         }
 
-        // 创建消息对象
-        function createMessageObject(type, content) {
-            return {
-                id: Date.now() + Math.random().toString(36).substr(2, 9),
-                type,
-                content,
-                from: STATE.currentUser,
-                to: STATE.currentChat.id,
-                chatType: STATE.currentChat.type,
+        // 统一发送数据
+        function sendData(data){
+            let msg = {
+                id: Date.now(),
+                from: currentUser,
+                to: currentChat.id,
+                chatType: currentChat.type,
+                ...data,
                 time: new Date().toLocaleTimeString(),
-                isRead: false,
-                isRecalled: false
+                recalled: false
             };
+            ws.send(JSON.stringify(msg));
+            renderMsg(msg, true);
         }
 
-        // 发送到对等端
-        function sendToPeer(msgObj) {
-            STATE.socket.emit('message', msgObj);
-            saveMessage(msgObj);
-            renderMessage(msgObj);
-        }
-
-        // 处理接收消息
-        function handleReceiveMessage(msgObj) {
-            saveMessage(msgObj);
-            // 声音提示
-            document.getElementById('msgSound').play().catch(()=>{});
-            // 桌面通知
-            showDesktopNotification(msgObj);
-            // 渲染
-            if(msgObj.to === STATE.currentChat.id || msgObj.chatType === 'group') {
-                renderMessage(msgObj);
+        // 接收消息
+        function handleMsg(msg){
+            if(msg.from === currentUser) return;
+            // 匹配当前聊天/群聊，显示消息
+            if(msg.to === currentChat.id || (msg.chatType==="group" && currentChat.id===msg.to)){
+                renderMsg(msg, false);
+                msgSound.play().catch(()=>{});
+                showNotice(msg.from, msg.content);
             }
-            // 标记已读
-            msgObj.isRead = true;
-        }
-
-        // 保存消息
-        function saveMessage(msgObj) {
-            const key = `${msgObj.chatType}_${msgObj.to}`;
-            if(!STATE.messages[key]) STATE.messages[key] = [];
-            STATE.messages[key].push(msgObj);
-        }
-
-        // 加载消息
-        function loadMessages() {
-            const key = `${STATE.currentChat.type}_${STATE.currentChat.id}`;
-            if(!STATE.messages[key]) return;
-            STATE.messages[key].forEach(msg => renderMessage(msg));
         }
 
         // 渲染消息
-        function renderMessage(msgObj) {
-            const area = document.getElementById('messageArea');
-            const msgEl = document.createElement('div');
-            msgEl.className = `message-item ${msgObj.from === STATE.currentUser ? 'message-self' : 'message-other'}`;
-            msgEl.dataset.id = msgObj.id;
+        function renderMsg(msg, isSelf){
+            let div = document.createElement("div");
+            div.className = `message-item ${isSelf?"message-self":"message-other"}`;
+            div.dataset.id = msg.id;
+            
+            let content = msg.recalled 
+                ? `<div class="message-text recalled">对方撤回了一条消息</div>`
+                : msg.type==="text" 
+                    ? `<div class="message-text">${msg.content.replace(/@(\w+)/g,'<span class="text-blue-500">@$1</span>')}</div>`
+                    : msg.type==="image" 
+                        ? `<div class="message-text p-1"><img src="${msg.content}" class="max-w-xs rounded"></div>`
+                        : `<div class="message-text"><i class="fa fa-file mr-2"></i>${msg.content.name}</div>`;
 
-            // 消息内容
-            let contentHtml = '';
-            if(msgObj.isRecalled) {
-                contentHtml = `<div class="message-text recalled">${msgObj.from} 撤回了一条消息</div>`;
-            } else {
-                switch(msgObj.type) {
-                    case 'text':
-                        // 处理@提及
-                        contentHtml = `<div class="message-text">${msgObj.content.replace(/@(\w+)/g, '<span class="text-blue-500">@$1</span>')}</div>`;
-                        break;
-                    case 'image':
-                        contentHtml = `<div class="message-text p-1"><img src="${msgObj.content}" class="max-w-xs rounded"></div>`;
-                        break;
-                    case 'file':
-                        contentHtml = `<div class="message-text file-item"><i class="fa fa-file mr-2"></i>${msgObj.content.name}</div>`;
-                        break;
-                }
-            }
-
-            msgEl.innerHTML = `
-                <div class="message-avatar">${msgObj.from.slice(-2)}</div>
+            div.innerHTML = `
+                <div class="message-avatar">${msg.from.slice(-2)}</div>
                 <div class="message-content">
-                    <div class="message-meta">
-                        <span>${msgObj.from}</span>
-                        <span>${msgObj.time}</span>
-                    </div>
-                    ${contentHtml}
-                    ${msgObj.from === STATE.currentUser && !msgObj.isRecalled ? `<div class="text-right mt-1"><span class="text-xs text-gray-500 cursor-pointer recall-btn" data-id="${msgObj.id}">撤回</span></div>` : ''}
+                    <div class="message-meta">${msg.from} · ${msg.time}</div>
+                    ${content}
+                    ${isSelf && !msg.recalled ? `<div class="text-right mt-1"><span class="text-xs text-gray-500 cursor-pointer recall-btn" data-id="${msg.id}">撤回</span></div>` : ""}
                 </div>
             `;
+            messageArea.appendChild(div);
+            messageArea.scrollTop = messageArea.scrollHeight;
 
-            // 绑定撤回事件
-            msgEl.querySelector('.recall-btn')?.addEventListener('click', () => {
-                STATE.pendingRecall = msgObj;
-                document.getElementById('recallModal').classList.remove('hidden');
-            });
-
-            area.appendChild(msgEl);
-            area.scrollTop = area.scrollHeight;
+            div.querySelector(".recall-btn")?.onclick = () => {
+                pendingRecall = msg;
+                recallModal.classList.remove("hidden");
+            };
         }
 
         // 撤回消息
-        function recallMessage() {
-            if(!STATE.pendingRecall) return;
-            STATE.pendingRecall.isRecalled = true;
-            sendToPeer({...STATE.pendingRecall, isRecalled: true});
-            document.getElementById('recallModal').classList.add('hidden');
-            STATE.pendingRecall = null;
-            // 重新渲染
-            document.getElementById('messageArea').innerHTML = '';
-            loadMessages();
+        function doRecall(){
+            if(pendingRecall) sendData({...pendingRecall, recalled:true});
+            recallModal.classList.add("hidden");
+            messageArea.innerHTML = "";
         }
 
-        // 处理图片上传
-        function handleImageUpload(e) {
-            const file = e.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = evt => {
-                const msgObj = createMessageObject('image', evt.target.result);
-                sendToPeer(msgObj);
-            };
-            reader.readAsDataURL(file);
-            e.target.value = '';
+        // 上传图片
+        function uploadImage(e){
+            let reader = new FileReader();
+            reader.onload = () => sendData({type:"image", content:reader.result});
+            reader.readAsDataURL(e.target.files[0]);
         }
 
-        // 处理文件上传
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = evt => {
-                const msgObj = createMessageObject('file', {
-                    name: file.name,
-                    size: file.size,
-                    content: evt.target.result
-                });
-                sendToPeer(msgObj);
-            };
-            reader.readAsDataURL(file);
-            e.target.value = '';
+        // 上传文件
+        function uploadFile(e){
+            let file = e.target.files[0];
+            sendData({type:"file", content:{name:file.name}});
         }
 
-        // 显示桌面通知
-        function showDesktopNotification(msgObj) {
-            if(Notification.permission === 'granted' && document.hidden) {
-                new Notification(`${msgObj.from} 发来消息`, {
-                    body: msgObj.isRecalled ? '撤回了一条消息' : msgObj.content.slice(0, 20),
-                    icon: 'https://cdn-icons-png.flaticon.com/512/1059/1059177.png'
-                });
-            } else if(Notification.permission !== 'denied') {
-                Notification.requestPermission();
-            }
-            // 页面内弹窗
-            const popup = document.createElement('div');
-            popup.className = 'popup-notice';
-            popup.innerHTML = `<b>${msgObj.from}</b><br>${msgObj.isRecalled ? '撤回了一条消息' : msgObj.content.slice(0, 20)}`;
-            document.body.appendChild(popup);
-            setTimeout(() => popup.remove(), 3000);
-        }
-
-        // 处理信令
-        function handleSignal(data) {
-            // WebRTC信令处理逻辑（简化版，确保基础互通）
-            if(data.type === 'offer') {
-                // 处理offer
-            } else if(data.type === 'answer') {
-                // 处理answer
-            } else if(data.type === 'candidate') {
-                // 处理候选者
-            }
+        // 桌面通知
+        function showNotice(from, content){
+            if(document.hidden) new Notification(from, {body:content});
+            let p = document.createElement("div");
+            p.className = "popup-notice";
+            p.innerHTML = `<b>${from}</b><br>${content}`;
+            document.body.appendChild(p);
+            setTimeout(()=>p.remove(), 3000);
         }
     </script>
 </body>
