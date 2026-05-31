@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>30人双群聊天室 - 全设备互通</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑;}
+        body{background:#f0f2f5;padding:15px;}
+        .login-mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;}
+        .login-box{background:#fff;width:340px;padding:30px;border-radius:12px;box-shadow:0 5px 30px #00000030;}
+        .login-title{text-align:center;font-size:22px;margin-bottom:20px;color:#1677ff;}
+        .login-item{margin-bottom:15px;}
+        .login-item label{display:block;margin-bottom:6px;color:#444;}
+        .login-item input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;outline:none;font-size:15px;}
+        .login-btn{width:100%;padding:12px;background:#1677ff;color:#fff;border:none;border-radius:8px;font-size:16px;margin-top:10px;cursor:pointer;}
+        .login-tip{color:#f53f3f;font-size:13px;text-align:center;margin-top:10px;}
+        .logout-bar{text-align:right;padding:10px 15px;background:#fff;border-radius:8px;margin-bottom:10px;max-width:1000px;margin-left:auto;margin-right:auto;}
+        .logout-btn{padding:6px 12px;border:1px solid #ccc;background:#f8f9fa;border-radius:6px;cursor:pointer;}
+        .disable{pointer-events:none;opacity:0.5;}
+        .container{max-width:1000px;margin:0 auto;display:flex;gap:12px;}
+        .member-box{width:170px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px #00000010;}
+        .member-title{padding:12px;background:#1677ff;color:#fff;text-align:center;}
+        .member-list{padding:10px;max-height:500px;overflow-y:auto;}
+        .member-item{padding:8px;border-radius:6px;margin:4px 0;display:flex;align-items:center;gap:8px;}
+        .online-dot{width:8px;height:8px;background:#52c41a;border-radius:50%;}
+        .chat-box{flex:1;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px #00000010;}
+        .chat-header{padding:16px;background:#1677ff;color:#fff;text-align:center;position:relative;}
+        .unread-badge{position:absolute;right:15px;top:50%;transform:translateY(-50%);background:#ff4d4f;color:#fff;padding:2px 6px;border-radius:10px;font-size:12px;display:none;}
+        .group-tab{display:flex;background:#fff;border-bottom:1px solid #eee;}
+        .group-tab-item{flex:1;text-align:center;padding:12px 0;cursor:pointer;border-bottom:3px solid transparent;}
+        .group-tab-item.active{color:#1677ff;border-color:#1677ff;font-weight:bold;}
+        .tool-bar{padding:10px 15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #eee;}
+        .name-set{display:flex;align-items:center;gap:8px;}
+        .name-set input{width:110px;padding:6px;border:1px solid #ddd;border-radius:6px;outline:none;}
+        .btn{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;font-size:14px;}
+        .btn-emoji{background:#f8f9fa;border:1px solid #ddd;}
+        .btn-at{background:#faad14;color:#fff;}
+        .btn-file{background:#13c2c2;color:#fff;}
+        .btn-recall{background:#722ed1;color:#fff;}
+        .btn-read{background:#52c41a;color:#fff;}
+        .btn-clear{background:#ff4d4f;color:#fff;}
+        .file-input{display:none;}
+        .chat-main{height:420px;padding:15px;overflow-y:auto;}
+        .msg-item{margin:10px 0;display:flex;}
+        .msg-self{justify-content:flex-end;}
+        .msg-other{justify-content:flex-start;}
+        .msg-wrap{max-width:75%;}
+        .nick-time{font-size:12px;color:#999;margin-bottom:4px;display:flex;gap:10px;}
+        .read-status{color:#52c41a;}
+        .unread-tip{color:#ff7875;}
+        .msg-content{padding:9px 12px;border-radius:10px;line-height:1.5;font-size:14px;word-break:break-all;}
+        .msg-self .msg-content{background:#1677ff;color:#fff;border-bottom-right-radius:3px;}
+        .msg-other .msg-content{background:#f1f3f5;color:#222;border-bottom-left-radius:3px;}
+        .msg-img{max-width:180px;border-radius:10px;}
+        .msg-file{padding:8px 10px;background:#e8f4ff;color:#1677ff;border-radius:8px;text-decoration:none;display:inline-block;}
+        .recall-tip{color:#999;font-style:italic;}
+        .at-user{color:#faad14;font-weight:bold;}
+        .chat-input{padding:15px;display:flex;gap:10px;align-items:center;border-top:1px solid #eee;}
+        #msgInput{flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;outline:none;resize:none;height:46px;font-size:14px;}
+        .send-btn{padding:10px 24px;background:#1677ff;color:#fff;border:none;border-radius:8px;cursor:pointer;}
+        .emoji-panel{display:none;position:absolute;background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;grid-template-columns:repeat(8,1fr);gap:6px;z-index:999;box-shadow:0 3px 15px #00000020;}
+        .emoji-item{font-size:20px;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;border-radius:6px;}
+        .emoji-item:hover{background:#f1f1f1;}
+    </style>
+</head>
+<body>
+
+<audio id="notifySound" preload="auto"></audio>
+
+<div class="login-mask" id="loginMask">
+    <div class="login-box">
+        <div class="login-title">账号登录</div>
+        <div class="login-item">
+            <label>账号</label>
+            <input type="text" id="accInput" placeholder="user01 ~ user30">
+        </div>
+        <div class="login-item">
+            <label>密码</label>
+            <input type="password" id="pwdInput" placeholder="密码：123456">
+        </div>
+        <div class="login-tip" id="loginTip"></div>
+        <button class="login-btn" onclick="doLogin()">登 录</button>
+    </div>
+</div>
+
+<div class="logout-bar" id="logoutBar" style="display:none;">
+    <span>当前账号：<b id="currentAcc"></b></span>
+    <button class="logout-btn" onclick="doLogout()">退出登录</button>
+</div>
+
+<div class="container" id="chatContainer">
+    <div class="member-box">
+        <div class="member-title">好友列表</div>
+        <div class="member-list" id="memberList"></div>
+    </div>
+    <div class="chat-box">
+        <div class="chat-header">
+            多人聊天室
+            <span class="unread-badge" id="unreadBadge">0</span>
+        </div>
+        <div class="group-tab">
+            <div class="group-tab-item active" onclick="switchGroup('group1',this)">一群</div>
+            <div class="group-tab-item" onclick="switchGroup('group2',this)">二群</div>
+        </div>
+        <div class="tool-bar">
+            <div class="name-set">
+                <span>昵称：</span>
+                <input type="text" id="nickName" value="用户">
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-emoji" id="emojiBtn">😊 表情</button>
+                <button class="btn btn-at" onclick="atUser()">@好友</button>
+                <label class="btn btn-file">
+                    📎 文件
+                    <input type="file" id="fileInput" class="file-input" multiple>
+                </label>
+                <button class="btn btn-recall" onclick="recallMsg()">撤回</button>
+                <button class="btn btn-read" onclick="markRead()">已读</button>
+                <button class="btn btn-clear" onclick="clearMsg()">清空</button>
+            </div>
+        </div>
+        <div class="emoji-panel" id="emojiPanel"></div>
+        <div class="chat-main" id="chatContent"></div>
+        <div class="chat-input">
+            <textarea id="msgInput" placeholder="输入消息…回车发送"></textarea>
+            <button class="send-btn" onclick="sendMsg()">发送</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==============================================
+// 配置：30个账号 + 双群 + 免费公共socket服务器
+// ==============================================
+const socket = io('wss://echo.websocket.events', { transports: ['websocket'] });
+
+const accounts = [];
+for (let i=1; i<=30; i++) {
+    const num = i.toString().padStart(2, '0');
+    accounts.push({ acc: `user${num}`, pwd: '123456' });
+}
+
+const friends = accounts.map(a => a.acc);
+let currentGroup = 'group1';
+let loginUser = null;
+let msgList = [];
+let myNick = '';
+
+// 声音
+const sound = document.getElementById('notifySound');
+sound.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQGAACNngU+fNlSAU5N1XZdSaFn3iJQqVpKNXJlV5Hl/lTY7q+aoWz5hZVs9QgA=';
+
+// DOM
+const loginMask = document.getElementById('loginMask');
+const accInput = document.getElementById('accInput');
+const pwdInput = document.getElementById('pwdInput');
+const loginTip = document.getElementById('loginTip');
+const logoutBar = document.getElementById('logoutBar');
+const currentAcc = document.getElementById('currentAcc');
+const chatContainer = document.getElementById('chatContainer');
+const nickDom = document.getElementById('nickName');
+const chatContent = document.getElementById('chatContent');
+const msgInput = document.getElementById('msgInput');
+const emojiPanel = document.getElementById('emojiPanel');
+const unreadBadge = document.getElementById('unreadBadge');
+const memberList = document.getElementById('memberList');
+const fileInput = document.getElementById('fileInput');
+
+// 表情
+const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😜','😝','👍','👋','🎉','❤️','🐱','🎵','✅','🚀'];
+emojis.forEach(e => {
+    const dom = document.createElement('span');
+    dom.className = 'emoji-item';
+    dom.innerText = e;
+    dom.onclick = () => { msgInput.value += e; emojiPanel.style.display = 'none'; };
+    emojiPanel.appendChild(dom);
+});
+
+// ==============================================
+// 登录
+// ==============================================
+function doLogin() {
+    const acc = accInput.value.trim();
+    const pwd = pwdInput.value.trim();
+    const user = accounts.find(u => u.acc === acc && u.pwd === pwd);
+    if (!user) { loginTip.innerText = '账号或密码错误'; return; }
+    loginUser = user;
+    localStorage.setItem('chatUser', JSON.stringify(user));
+    afterLogin();
+}
+
+function doLogout() {
+    loginUser = null;
+    localStorage.removeItem('chatUser');
+    loginMask.style.display = 'flex';
+    logoutBar.style.display = 'none';
+    chatContainer.classList.add('disable');
+}
+
+function afterLogin() {
+    loginMask.style.display = 'none';
+    logoutBar.style.display = 'block';
+    currentAcc.innerText = loginUser.acc;
+    chatContainer.classList.remove('disable');
+    renderFriend();
+    renderChat();
+}
+
+// ==============================================
+// 群切换
+// ==============================================
+function switchGroup(g, el) {
+    currentGroup = g;
+    document.querySelectorAll('.group-tab-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    msgList = [];
+    renderChat();
+}
+
+// ==============================================
+// 消息通信
+// ==============================================
+socket.on('message', (data) => {
+    try {
+        const msg = JSON.parse(data);
+        if (msg.group === currentGroup && msg.user !== loginUser?.acc) {
+            msgList.push(msg);
+            playSound();
+            renderChat();
+        }
+    } catch(e) {}
+});
+
+function sendMsg() {
+    const content = msgInput.value.trim();
+    myNick = nickDom.value.trim() || loginUser.acc;
+    if (!content || !loginUser) return;
+    const msg = {
+        group: currentGroup,
+        user: loginUser.acc,
+        nick: myNick,
+        content,
+        time: new Date().toLocaleTimeString(),
+        type: 'text',
+        stamp: Date.now()
+    };
+    socket.send(JSON.stringify(msg));
+    msgList.push(msg);
+    msgInput.value = '';
+    renderChat();
+}
+
+// ==============================================
+// 渲染
+// ==============================================
+function renderChat() {
+    chatContent.innerHTML = '';
+    msgList.forEach(m => {
+        const div = document.createElement('div');
+        div.className = `msg-item ${m.user === loginUser?.acc ? 'msg-self' : 'msg-other'}`;
+        let html = `
+            <div class="msg-wrap">
+                <div class="nick-time">${m.nick} · ${m.time}</div>
+                <div class="msg-content">${m.content.replace(/@(\w+)/g, '<span class="at-user">@$1</span>')}</div>
+            </div>`;
+        div.innerHTML = html;
+        chatContent.appendChild(div);
+    });
+    chatContent.scrollTop = chatContent.scrollHeight;
+}
+
+function renderFriend() {
+    memberList.innerHTML = '';
+    friends.forEach(f => {
+        const d = document.createElement('div');
+        d.className = 'member-item';
+        d.innerHTML = `<span class="online-dot"></span><span>${f}</span>`;
+        memberList.appendChild(d);
+    });
+}
+
+function playSound() {
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+}
+
+function atUser() {
+    msgInput.value += `@${friends[0]} `;
+    msgInput.focus();
+}
+
+function markRead() { unreadBadge.style.display = 'none'; }
+function recallMsg() { msgList.pop(); renderChat(); }
+function clearMsg() { msgList = []; renderChat(); }
+
+// 事件
+document.getElementById('emojiBtn').onclick = (e) => {
+    e.stopPropagation();
+    emojiPanel.style.display = emojiPanel.style.display === 'grid' ? 'none' : 'grid';
+};
+document.onclick = () => emojiPanel.style.display = 'none';
+msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+
+// 初始化
+window.onload = () => {
+    const u = localStorage.getItem('chatUser');
+    if (u) { loginUser = JSON.parse(u); afterLogin(); }
+};
+</script>
+</body>
+</html>
