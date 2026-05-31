@@ -1,369 +1,247 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>仿QQ聊天室 | 群聊+私聊</title>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑",sans-serif;}
-        body{background:#e5e6eb;height:100vh;overflow:hidden;}
-        /* 加载 */
-        .loading{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;z-index:10000;font-size:18px;color:#128bf1;}
-        /* 登录弹窗 */
-        .login-mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;}
-        .login-box{background:#fff;width:360px;padding:30px;border-radius:12px;box-shadow:0 5px 30px #0003;}
-        .login-title{text-align:center;font-size:24px;margin-bottom:20px;color:#128bf1;font-weight:bold;}
-        .login-item{margin-bottom:18px;}
-        .login-item label{display:block;margin-bottom:6px;color:#555;}
-        .login-item input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;outline:none;font-size:15px;}
-        .login-btn{width:100%;padding:12px;background:#128bf1;color:#fff;border:none;border-radius:8px;font-size:16px;margin-top:10px;cursor:pointer;}
-        .login-tip{color:#f53f3f;font-size:13px;text-align:center;margin-top:10px;}
-        /* 主三栏布局 */
-        .main-wrap{display:flex;width:100%;height:100vh;}
-        /* 左导航栏（QQ侧边） */
-        .left-nav{width:60px;background:#202124;display:flex;flex-direction:column;align-items:center;padding:10px 0;}
-        .nav-avatar{width:40px;height:40px;border-radius:50%;background:#128bf1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-bottom:20px;cursor:pointer;}
-        .nav-item{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#b8b9bb;font-size:20px;margin:8px 0;cursor:pointer;}
-        .nav-item.active{background:#303134;color:#fff;}
-        /* 中间会话列表 */
-        .session-panel{width:240px;background:#f7f8fa;border-right:1px solid #e5e6eb;display:flex;flex-direction:column;}
-        .session-header{height:50px;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 15px;font-size:16px;font-weight:bold;}
-        .session-tab{display:flex;background:#fff;border-bottom:1px solid #eee;}
-        .session-tab-item{flex:1;text-align:center;padding:10px 0;cursor:pointer;font-size:14px;color:#666;}
-        .session-tab-item.active{color:#128bf1;border-bottom:2px solid #128bf1;font-weight:bold;}
-        .session-list{flex:1;overflow-y:auto;}
-        .session-item{display:flex;align-items:center;padding:12px 15px;cursor:pointer;border-bottom:1px solid #f0f0f0;}
-        .session-item.active{background:#e8f4ff;}
-        .session-avatar{width:40px;height:40px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#666;}
-        .session-info{flex:1;margin-left:10px;overflow:hidden;}
-        .session-name{font-size:14px;font-weight:bold;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        .session-msg{font-size:12px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
-        .session-time{font-size:11px;color:#bbb;white-space:nowrap;margin-left:5px;}
-        .unread-dot{width:18px;height:18px;border-radius:50%;background:#f53f3f;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;margin-left:5px;}
-        /* 右侧聊天主窗口 */
-        .chat-panel{flex:1;background:#fff;display:flex;flex-direction:column;}
-        .chat-header{height:50px;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;padding:0 20px;font-size:16px;font-weight:bold;}
-        .chat-main{flex:1;padding:20px;overflow-y:auto;background:#f7f8fa;}
-        /* 消息气泡（QQ样式） */
-        .msg-item{display:flex;margin:15px 0;}
-        .msg-item.self{justify-content:flex-end;}
-        .msg-avatar{width:40px;height:40px;border-radius:50%;background:#ddd;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#666;flex-shrink:0;}
-        .msg-item.self .msg-avatar{order:2;margin-left:10px;}
-        .msg-bubble{max-width:60%;padding:10px 14px;border-radius:12px;position:relative;word-break:break-all;}
-        .msg-item.other .msg-bubble{background:#fff;border:1px solid #e5e6eb;margin-left:10px;}
-        .msg-item.self .msg-bubble{background:#128bf1;color:#fff;margin-right:10px;}
-        .msg-time{font-size:11px;color:#bbb;text-align:center;margin:5px 0;}
-        /* 底部输入区 */
-        .input-tool{height:40px;background:#fff;border-top:1px solid #eee;display:flex;align-items:center;padding:0 15px;gap:15px;}
-        .tool-btn{font-size:18px;color:#666;cursor:pointer;}
-        .tool-btn:hover{color:#128bf1;}
-        .tool-btn input{display:none;}
-        .input-wrap{height:120px;background:#fff;border-top:1px solid #eee;padding:10px 15px;display:flex;flex-direction:column;}
-        #msgInput{flex:1;width:100%;border:none;outline:none;resize:none;font-size:14px;}
-        .send-btn{align-self:flex-end;margin-top:10px;padding:8px 20px;background:#128bf1;color:#fff;border:none;border-radius:6px;cursor:pointer;}
-        /* 表情面板 */
-        .emoji-panel{display:none;position:absolute;bottom:170px;left:310px;width:320px;background:#fff;border:1px solid #e5e6eb;border-radius:8px;padding:10px;grid-template-columns:repeat(8,1fr);gap:6px;z-index:999;box-shadow:0 3px 15px #0002;}
-        .emoji-item{font-size:20px;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;border-radius:6px;}
-        .emoji-item:hover{background:#f1f1f1;}
-        /* 工具类 */
-        .disable{pointer-events:none;opacity:0.5;}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>仿QQ聊天室</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑;}
+body{background:#e5e6eb;height:100vh;overflow:hidden;}
+
+/* 登录框 */
+.login{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:#fff;width:340px;padding:25px;border-radius:10px;}
+.login h2{text-align:center;color:#128bf1;margin-bottom:20px;}
+.login p{margin:12px 0;}
+.login input{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-top:4px;}
+.login button{width:100%;padding:10px;background:#128bf1;color:#fff;border:none;border-radius:6px;margin-top:15px;cursor:pointer;}
+.err{color:red;font-size:12px;margin-top:8px;}
+
+/* 主布局 三栏 */
+.main{display:flex;width:100%;height:100vh;display:none;}
+
+/* 左侧导航 */
+.left{width:60px;background:#222;display:flex;flex-direction:column;align-items:center;padding-top:15px;}
+.avatar{width:40px;height:40px;border-radius:50%;background:#128bf1;color:#fff;line-height:40px;text-align:center;font-weight:bold;margin-bottom:20px;}
+.nav-item{width:40px;height:40px;line-height:40px;text-align:center;color:#ccc;font-size:20px;margin:6px 0;border-radius:6px;cursor:pointer;}
+.nav-item.active{background:#333;color:#fff;}
+
+/* 中间会话列表 */
+.mid{width:240px;background:#f7f8fa;border-right:1px solid #ddd;display:flex;flex-direction:column;}
+.mid-top{height:48px;line-height:48px;padding:0 15px;font-weight:bold;border-bottom:1px solid #eee;background:#fff;}
+.tab{display:flex;background:#fff;border-bottom:1px solid #eee;}
+.tab span{flex:1;text-align:center;line-height:36px;font-size:14px;color:#666;cursor:pointer;}
+.tab span.active{color:#128bf1;border-bottom:2px solid #128bf1;font-weight:bold;}
+.session{flex:1;overflow:auto;}
+.session-item{display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid #eee;cursor:pointer;}
+.session-item.active{background:#e8f4ff;}
+.s-ava{width:36px;height:36px;border-radius:50%;background:#ddd;line-height:36px;text-align:center;font-weight:bold;color:#666;}
+.s-info{flex:1;margin-left:10px;overflow:hidden;}
+.s-name{font-size:14px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.s-msg{font-size:12px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.s-time{font-size:11px;color:#bbb;}
+
+/* 右侧聊天区 */
+.right{flex:1;background:#fff;display:flex;flex-direction:column;}
+.chat-title{height:48px;line-height:48px;padding:0 20px;font-weight:bold;border-bottom:1px solid #eee;}
+.chat-content{flex:1;padding:15px;overflow:auto;background:#f7f8fa;}
+.msg{margin:12px 0;display:flex;}
+.msg.me{justify-content:flex-end;}
+.msg-ava{width:36px;height:36px;border-radius:50%;background:#ddd;line-height:36px;text-align:center;font-weight:bold;color:#666;flex-shrink:0;}
+.msg.me .msg-ava{order:2;margin-left:8px;}
+.msg-text{max-width:60%;padding:8px 12px;border-radius:10px;word-break:break-all;}
+.msg.other .msg-text{background:#fff;border:1px solid #ddd;margin-left:8px;}
+.msg.me .msg-text{background:#128bf1;color:#fff;margin-right:8px;}
+.time-line{text-align:center;font-size:12px;color:#aaa;margin:8px 0;}
+
+/* 底部输入栏 */
+.tool{height:38px;line-height:38px;padding:0 15px;border-top:1px solid #eee;}
+.tool span{font-size:18px;margin-right:15px;color:#666;cursor:pointer;}
+.input-area{height:110px;padding:10px 15px;border-top:1px solid #eee;display:flex;flex-direction:column;}
+textarea{flex:1;border:none;outline:none;resize:none;font-size:14px;}
+.send{align-self:flex-end;margin-top:8px;padding:6px 18px;background:#128bf1;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+</style>
 </head>
 <body>
-<div class="loading" id="loading">正在连接服务器...</div>
-<audio id="notifySound" preload="auto">
 
-<!-- 登录弹窗 -->
-<div class="login-mask" id="loginMask" style="display:none;">
+<!-- 登录界面 -->
+<div class="login" id="loginBox">
     <div class="login-box">
-        <div class="login-title">QQ账号登录</div>
-        <div class="login-item">
-            <label>账号</label>
-            <input type="text" id="accInput" placeholder="user01 ~ user30">
-        </div>
-        <div class="login-item">
-            <label>密码</label>
-            <input type="password" id="pwdInput" placeholder="密码：123456">
-        </div>
-        <div class="login-tip" id="loginTip"></div>
-        <button class="login-btn" onclick="doLogin()">登 录</button>
+        <h2>账号登录</h2>
+        <p>账号：<input type="text" id="uid" placeholder="user01 ~ user30"></p>
+        <p>密码：<input type="password" id="pwd" placeholder="123456"></p>
+        <div class="err" id="errTip"></div>
+        <button onclick="login()">登 录</button>
     </div>
 </div>
 
-<!-- 主界面：三栏 -->
-<div class="main-wrap" id="mainWrap" style="display:none;">
-    <!-- 左导航栏 -->
-    <div class="left-nav">
-        <div class="nav-avatar" id="navAvatar">U</div>
-        <div class="nav-item active" title="消息">💬</div>
-        <div class="nav-item" title="联系人">👥</div>
-        <div class="nav-item" title="文件">📁</div>
-        <div class="nav-item" title="设置">⚙️</div>
+<!-- 主界面 仿QQ三栏 -->
+<div class="main" id="mainBox">
+    <!-- 左导航 -->
+    <div class="left">
+        <div class="avatar" id="myAva">U</div>
+        <div class="nav-item active">💬</div>
+        <div class="nav-item">👥</div>
+        <div class="nav-item">⚙️</div>
     </div>
 
-    <!-- 中间会话列表 -->
-    <div class="session-panel">
-        <div class="session-header">消息</div>
-        <div class="session-tab">
-            <div class="session-tab-item active" onclick="switchTab('group')">群聊</div>
-            <div class="session-tab-item" onclick="switchTab('private')">私聊</div>
+    <!-- 中间会话 -->
+    <div class="mid">
+        <div class="mid-top">消息</div>
+        <div class="tab">
+            <span class="active" onclick="switchTab('group')">群聊</span>
+            <span onclick="switchTab('pri')">私聊</span>
         </div>
-        <div class="session-list" id="sessionList"></div>
+        <div class="session" id="sessionList"></div>
     </div>
 
-    <!-- 右侧聊天窗口 -->
-    <div class="chat-panel">
-        <div class="chat-header" id="chatHeader">选择会话开始聊天</div>
-        <div class="chat-main" id="chatMain"></div>
-        <div class="input-tool">
-            <span class="tool-btn" id="emojiBtn">😊</span>
-            <label class="tool-btn">📎<input type="file" id="fileInput" class="file-input"></label>
-            <span class="tool-btn">✂️</span>
-            <span class="tool-btn">🎤</span>
+    <!-- 右侧聊天 -->
+    <div class="right">
+        <div class="chat-title" id="chatTitle">请选择会话</div>
+        <div class="chat-content" id="chatBox"></div>
+        <div class="tool">
+            <span title="表情">😊</span>
+            <span title="文件">📎</span>
         </div>
-        <div class="input-wrap">
-            <textarea id="msgInput" placeholder="输入消息..."></textarea>
-            <button class="send-btn" onclick="sendMsg()">发送</button>
+        <div class="input-area">
+            <textarea id="txt"></textarea>
+            <button class="send" onclick="send()">发送</button>
         </div>
     </div>
 </div>
-
-<!-- 表情面板 -->
-<div class="emoji-panel" id="emojiPanel"></div>
 
 <script>
-// 【修复】使用更稳定的公共广播服务
-const socket = io('https://socketio-test-server.glitch.me/', { transports: ['websocket'] });
-
-// 30个固定账号
-const accounts = [];
-for (let i = 1; i <= 30; i++) {
-    let num = i.toString().padStart(2, '0');
-    accounts.push({ acc: `user${num}`, pwd: '123456' });
+// 账号列表
+const userList = [];
+for(let i=1;i<=30;i++){
+    let n = i.toString().padStart(2,'0');
+    userList.push({id:'user'+n,pwd:'123456'});
 }
-const allFriends = accounts.map(item => item.acc);
 
-// 全局变量
-let currTab = "group"; // group/private
-let currSessionKey = null;
-let loginUser = null;
-let myNick = "";
-// 消息仓库
-let msgStore = {
-    group1: [],
-    group2: []
-};
-
-// 音效
-const sound = document.getElementById('notifySound');
-sound.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQGAACNngU+fNlSAU5N1XZdSaFn3iJQqVpKNXJlV5Hl/lTY7q+aoWz5hZVs9QgA=';
+let nowUser = null;
+let nowType = 'group';
+let nowKey = '';
+let msgData = JSON.parse(localStorage.getItem('chatData')) || {group1:[],group2:[]};
 
 // DOM
-const loading = document.getElementById('loading');
-const loginMask = document.getElementById('loginMask');
-const accInput = document.getElementById('accInput');
-const pwdInput = document.getElementById('pwdInput');
-const loginTip = document.getElementById('loginTip');
-const mainWrap = document.getElementById('mainWrap');
-const navAvatar = document.getElementById('navAvatar');
-const sessionList = document.getElementById('header');
-const chatHeader = document.getElementById('chatHeader');
-const chatMain = document.getElementById('chatMain');
-const msgInput = document.getElementById('msgInput');
-const emojiPanel = document.getElementById('emojiPanel');
-const emojiBtn = document.getElementById('emojiBtn');
-
-// 初始化表情
-const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😜','😝','👍','👋','🎉','❤️','🐱','🎵','✅','🚀'];
-emojis.forEach(em => {
-    let span = document.createElement('span');
-    span.className = 'emoji-item';
-    span.innerText = em;
-    span.onclick = function(){
-        msgInput.value += em;
-        emojiPanel.style.display = 'none';
-    };
-    emojiPanel.appendChild(span);
-});
-
-// 连接成功
-socket.on('connect', function(){
-    loading.style.display = 'none';
-    // 读取本地登录记录
-    let localUser = localStorage.getItem('chatUser');
-    if(localUser){
-        loginUser = JSON.parse(localUser);
-        afterLogin();
-    }else{
-        loginMask.style.display = 'flex';
-    }
-});
-
-// 连接失败/超时处理
-socket.on('connect_error', function(){
-    loading.innerText = '服务器连接失败，请刷新重试';
-    loading.style.color = '#f53f3f';
-});
-
-// 接收消息
-socket.on('message', function(data){
-    try{
-        let msg = JSON.parse(data);
-        let key = msg.key;
-        if(!msgStore[key]) msgStore[key] = [];
-        msgStore[key].push(msg);
-        // 非自己消息播放提示音
-        if(msg.sender !== loginUser?.acc){
-            playSound();
-        }
-        // 刷新会话列表和当前聊天
-        renderSessionList();
-        if(key === currSessionKey) renderChat();
-    }catch(e){}
-});
+const loginBox = document.getElementById('loginBox');
+const mainBox = document.getElementById('mainBox');
+const uid = document.getElementById('uid');
+const pwd = document.getElementById('pwd');
+const errTip = document.getElementById('errTip');
+const myAva = document.getElementById('myAva');
+const sessionList = document.getElementById('sessionList');
+const chatTitle = document.getElementById('chatTitle');
+const chatBox = document.getElementById('chatBox');
+const txt = document.getElementById('txt');
 
 // 登录
-function doLogin(){
-    let acc = accInput.value.trim();
-    let pwd = pwdInput.value.trim();
-    let user = accounts.find(u => u.acc === acc && u.pwd === pwd);
-    if(!user){
-        loginTip.innerText = '账号或密码错误';
+function login(){
+    let u = uid.value.trim();
+    let p = pwd.value.trim();
+    let find = userList.find(x=>x.id===u && x.pwd===p);
+    if(!find){
+        errTip.innerText = '账号或密码错误';
         return;
     }
-    loginUser = user;
-    localStorage.setItem('chatUser', JSON.stringify(user));
-    afterLogin();
+    nowUser = u;
+    loginBox.style.display = 'none';
+    mainBox.style.display = 'flex';
+    myAva.innerText = u.slice(-2);
+    renderSession();
 }
 
-// 登录后初始化
-function afterLogin(){
-    loginMask.style.display = 'none';
-    mainWrap.style.display = 'flex';
-    navAvatar.innerText = loginUser.acc.slice(-2);
-    renderSessionList();
+// 切换标签 群聊/私聊
+function switchTab(t){
+    nowType = t;
+    let tabs = document.querySelectorAll('.tab span');
+    tabs[0].className = t==='group'?'active':'';
+    tabs[1].className = t==='pri'?'active':'';
+    renderSession();
 }
 
-// 切换群聊/私聊标签
-function switchTab(tab){
-    currTab = tab;
-    document.querySelectorAll('.session-tab-item').forEach((el,i)=>{
-        el.classList.toggle('active', i=== (tab==='group'?0:1));
-    });
-    renderSessionList();
-}
-
-// 渲染会话列表（QQ样式）
-function renderSessionList(){
+// 渲染会话列表
+function renderSession(){
     sessionList.innerHTML = '';
-    let list = [];
-    if(currTab === 'group'){
-        list = [
-            {key:'group1',name:'一群',lastMsg:'欢迎加入一群'},
-            {key:'group2',name:'二群',lastMsg:'欢迎加入二群'}
+    let arr = [];
+    if(nowType === 'group'){
+        arr = [
+            {key:'group1',name:'一群'},
+            {key:'group2',name:'二群'}
         ];
     }else{
-        list = allFriends.filter(acc=>acc!==loginUser.acc).map(acc=>({
-            key:`pri_${[loginUser.acc,acc].sort().join('_')}`,
-            name:acc,
-            lastMsg:'暂无消息'
-        }));
+        arr = userList.filter(x=>x.id!==nowUser).map(x=>{
+            let k = [nowUser,x.id].sort().join('_');
+            return {key:'pri_'+k,name:x.id};
+        });
     }
-    list.forEach(item=>{
-        let lastMsg = msgStore[item.key]?.slice(-1)[0]?.content || item.lastMsg;
-        let time = msgStore[item.key]?.slice(-1)[0]?.time || '';
+    arr.forEach(item=>{
         let div = document.createElement('div');
-        div.className = `session-item ${item.key===currSessionKey?'active':''}`;
-        div.onclick = ()=>switchSession(item.key,item.name);
+        div.className = 'session-item' + (item.key===nowKey?' active':'');
+        div.onclick = ()=>openChat(item.key,item.name);
         div.innerHTML = `
-            <div class="session-avatar">${item.name.slice(-2)}</div>
-            <div class="session-info">
-                <div class="session-name">${item.name}</div>
-                <div class="session-msg">${lastMsg}</div>
+            <div class="s-ava">${item.name.slice(-2)}</div>
+            <div class="s-info">
+                <div class="s-name">${item.name}</div>
+                <div class="s-msg">${getLastMsg(item.key)}</div>
             </div>
-            <div class="session-time">${time}</div>
         `;
         sessionList.appendChild(div);
     });
 }
 
-// 切换会话
-function switchSession(key,name){
-    currSessionKey = key;
-    chatHeader.innerText = name;
-    renderSessionList();
+// 获取最后一条消息
+function getLastMsg(key){
+    if(!msgData[key]) return '暂无消息';
+    let last = msgData[key][msgData[key].length-1];
+    return last ? last.content : '暂无消息';
+}
+
+// 打开聊天窗口
+function openChat(key,name){
+    nowKey = key;
+    chatTitle.innerText = name;
+    renderSession();
     renderChat();
 }
 
-// 渲染聊天内容（QQ气泡+头像）
+// 渲染聊天内容
 function renderChat(){
-    let list = msgStore[currSessionKey] || [];
-    chatMain.innerHTML = '';
-    let lastTime = '';
-    list.forEach(item => {
-        // 时间分隔
-        if(item.time !== lastTime){
-            let timeDiv = document.createElement('div');
-            timeDiv.className = 'msg-time';
-            timeDiv.innerText = item.time;
-            chatMain.appendChild(timeDiv);
-            lastTime = item.time;
-        }
-        // 消息气泡
+    chatBox.innerHTML = '';
+    let list = msgData[nowKey] || [];
+    list.forEach(item=>{
+        let cls = item.sender === nowUser ? 'msg me' : 'msg other';
         let div = document.createElement('div');
-        div.className = `msg-item ${item.sender===loginUser.acc?'self':'other'}`;
+        div.className = cls;
         div.innerHTML = `
-            <div class="msg-avatar">${item.sender.slice(-2)}</div>
-            <div class="msg-bubble">${item.content}</div>
+            <div class="msg-ava">${item.sender.slice(-2)}</div>
+            <div class="msg-text">${item.content}</div>
         `;
-        chatMain.appendChild(div);
+        chatBox.appendChild(div);
     });
-    chatMain.scrollTop = chatMain.scrollHeight;
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 // 发送消息
-function sendMsg(){
-    let content = msgInput.value.trim();
-    myNick = loginUser.acc;
-    if(!content || !currSessionKey) return;
-
-    let msg = {
-        key: currSessionKey,
-        sender: loginUser.acc,
-        nick: myNick,
-        content: content,
-        time: new Date().toLocaleTimeString()
-    };
-    socket.send(JSON.stringify(msg));
-    if(!msgStore[currSessionKey]) msgStore[currSessionKey] = [];
-    msgStore[currSessionKey].push(msg);
-    msgInput.value = '';
-    renderSessionList();
+function send(){
+    let content = txt.value.trim();
+    if(!content || !nowKey) return;
+    if(!msgData[nowKey]) msgData[nowKey] = [];
+    msgData[nowKey].push({
+        sender:nowUser,
+        content:content
+    });
+    localStorage.setItem('chatData',JSON.stringify(msgData));
+    txt.value = '';
+    renderSession();
     renderChat();
 }
 
-// 播放提示音
-function playSound(){
-    sound.currentTime = 0;
-    sound.play().catch(()=>{});
-}
-
-// 表情面板开关
-emojiBtn.addEventListener('click', function(e){
-    e.stopPropagation();
-    emojiPanel.style.display = emojiPanel.style.display === 'grid' ? 'none' : 'grid';
-});
-document.addEventListener('click', function(){
-    emojiPanel.style.display = 'none';
-});
-
-// 回车发送
-msgInput.addEventListener('keydown', function(e){
-    if(e.key === 'Enter' && !e.shiftKey){
-        e.preventDefault();
-        sendMsg();
-    }
+// 多标签同步
+window.addEventListener('storage',function(){
+    msgData = JSON.parse(localStorage.getItem('chatData')) || {group1:[],group2:[]};
+    renderSession();
+    if(nowKey) renderChat();
 });
 </script>
 </body>
