@@ -1,450 +1,476 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全能聊天系统</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: '微软雅黑', sans-serif; }
-        body { background-color: #f5f5f5; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .hidden { display: none !important; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; background: #4285f4; color: white; cursor: pointer; }
-        .btn:hover { background: #3367d6; }
-        .btn-yellow { background: #fbbc05; }
-        .btn-yellow:hover { background: #e6b200; }
-        .btn-red { background: #ea4335; }
-        .btn-red:hover { background: #d93025; }
-        .btn-green { background: #34a853; }
-        .btn-green:hover { background: #2a8d46; }
-        .copy-btn { font-size: 12px; padding: 4px 8px; margin-left: 8px; }
-        
-        /* 登录注册界面 */
-        .auth-container { max-width: 400px; margin: 50px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .auth-tabs { display: flex; margin-bottom: 20px; }
-        .auth-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; background: #eee; }
-        .auth-tab.active { background: #4285f4; color: white; }
-        .auth-form { display: flex; flex-direction: column; gap: 15px; }
-        .auth-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .auth-form .error { color: #ea4335; font-size: 14px; }
-        .remember-me { display: flex; align-items: center; gap: 5px; }
-        
-        /* 主界面布局 */
-        .main-layout { display: flex; height: calc(100vh - 40px); background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
-        
-        /* 侧边栏 */
-        .sidebar { width: 260px; border-right: 1px solid #eee; display: flex; flex-direction: column; }
-        .user-profile { padding: 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
-        .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-        .user-info { flex: 1; }
-        .username { font-weight: bold; }
-        .status { font-size: 12px; color: #34a853; }
-        .user-id { font-size: 12px; color: #666; margin-top: 3px; cursor: pointer; }
-        .sidebar-menu { display: flex; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
-        .sidebar-menu button { flex: 1; }
-        .contact-list { flex: 1; overflow-y: auto; }
-        .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; gap: 12px; }
-        .contact-item:hover { background: #f5f5f5; }
-        .contact-item.active { background: #e8f0fe; }
-        .contact-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-        .contact-info { flex: 1; }
-        .contact-name { font-weight: 500; }
-        .contact-lastmsg { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .contact-time { font-size: 11px; color: #999; }
-        
-        /* 聊天区域 */
-        .chat-area { flex: 1; display: flex; flex-direction: column; }
-        .chat-header { padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
-        .chat-title { font-weight: bold; }
-        .chat-actions { margin-left: auto; display: flex; gap: 10px; }
-        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; background: #f8f9fa; }
-        .message { display: flex; margin-bottom: 15px; max-width: 80%; }
-        .message.self { justify-content: flex-end; }
-        .message.other { justify-content: flex-start; }
-        .message-content { padding: 10px 15px; border-radius: 18px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .message.self .message-content { background: #4285f4; color: white; }
-        .message-image { max-width: 200px; max-height: 200px; border-radius: 8px; }
-        .message-file { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e8f0fe; border-radius: 8px; }
-        .message-voice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f3f3; border-radius: 20px; }
-        .message-time { font-size: 11px; color: #999; margin-top: 5px; text-align: right; }
-        
-        /* 聊天输入区 */
-        .chat-input { padding: 15px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
-        .input-actions { display: flex; gap: 8px; }
-        .input-action-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f5f5f5; }
-        .input-action-btn:hover { background: #eee; }
-        .message-input { flex: 1; padding: 12px 15px; border: 1px solid #ddd; border-radius: 24px; outline: none; resize: none; height: 48px; }
-        .send-btn { padding: 10px 20px; border-radius: 24px; }
-        input[type="file"] { display: none; }
-        
-        /* 个人主页 */
-        .profile-page { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
-        .profile-header { display: flex; align-items: center; gap: 20px; }
-        .profile-avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .profile-info { flex: 1; }
-        .profile-username { font-size: 24px; font-weight: bold; }
-        .profile-id { font-size: 14px; color: #4285f4; margin: 5px 0; cursor: pointer; }
-        .profile-signature { margin-top: 5px; color: #666; }
-        .profile-edit-btn { align-self: flex-start; }
-        .profile-album { margin-top: 20px; }
-        .album-title { font-weight: bold; margin-bottom: 15px; }
-        .album-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        .album-item { width: 100%; aspect-ratio: 1; background: #f5f5f5; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .album-item img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 表情包面板 */
-        .emoji-panel { position: absolute; bottom: 70px; right: 20px; width: 300px; height: 200px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 10px; overflow-y: auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; z-index: 999; }
-        .emoji { font-size: 24px; cursor: pointer; text-align: center; padding: 5px; }
-        .emoji:hover { background: #f5f5f5; border-radius: 4px; }
-        
-        /* 弹窗 */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; max-width: 90%; }
-        .modal-title { font-weight: bold; font-size: 18px; margin-bottom: 20px; }
-        .modal-close { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 20px; }
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>聊天系统-好友申请+已读+撤回</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑"}
+body{background:#f5f5f5}
+.hidden{display:none !important}
+.btn{padding:7px 14px;border:none;border-radius:4px;background:#4285f4;color:#fff;cursor:pointer}
+.btn-green{background:#34a853}
+.btn-yellow{background:#fbbc05}
+.btn-red{background:#ea4335}
+.auth-box{width:400px;margin:50px auto;background:#fff;padding:30px;border-radius:8px;box-shadow:0 2px 12px #0000001a}
+.auth-tab{display:flex;margin-bottom:20px}
+.auth-tab>div{flex:1;text-align:center;padding:10px;background:#eee;cursor:pointer}
+.auth-tab>div.active{background:#4285f4;color:#fff}
+.form-item{margin-bottom:14px}
+.form-item input{width:100%;padding:10px;border:1px solid #ddd;border-radius:4px}
+.err{color:#f03838;font-size:13px;margin:4px 0}
+.main-box{max-width:1200px;margin:0 auto;height:calc(100vh - 30px);display:flex;background:#fff;border-radius:8px;overflow:hidden}
+.sidebar{width:260px;border-right:1px solid #eee;display:flex;flex-direction:column}
+.myinfo{padding:16px;border-bottom:1px solid #eee;display:flex;gap:12px;align-items:center}
+.avatar{width:46px;height:46px;border-radius:50%}
+.id-text{font-size:12px;color:#0066ff;cursor:pointer;margin:4px 0}
+.menu-bar{display:flex;padding:10px;gap:8px;border-bottom:1px solid #eee}
+.contact-list{flex:1;overflow:auto}
+.contact-item{padding:11px 14px;border-bottom:1px solid #f4f4f4;cursor:pointer;display:flex;gap:10px;align-items:center}
+.chat-wrap{flex:1;display:flex;flex-direction:column}
+.chat-head{padding:14px;border-bottom:1px solid #eee}
+.msg-container{flex:1;padding:15px;overflow:auto;background:#f7f8fa}
+.msg-item{margin:12px 0;max-width:78%;position:relative}
+.msg-self{margin-left:auto;text-align:right}
+.msg-content{padding:9px 13px;border-radius:16px;background:#fff;box-shadow:0 1px 3px #00000012}
+.msg-self .msg-content{background:#4285f4;color:#fff}
+.read-tag{font-size:11px;color:#888;margin-left:6px}
+.recall-btn{font-size:11px;color:#999;cursor:pointer;margin-top:3px}
+.recall-text{color:#999;font-style:italic}
+.input-area{padding:12px;border-top:1px solid #eee;display:flex;gap:10px;align-items:center}
+.msg-input{flex:1;height:46px;padding:10px;border:1px solid #ddd;border-radius:22px;outline:none}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:#00000050;display:flex;align-items:center;justify-content:center;z-index:999}
+.modal-inner{background:#fff;padding:22px;border-radius:8px;width:380px}
+.badge{background:#f03838;color:#fff;font-size:11px;padding:1px 5px;border-radius:10px;margin-left:5px}
+</style>
 </head>
 <body>
-    <!-- 登录注册界面 -->
-    <div id="auth-container" class="auth-container">
-        <div class="auth-tabs">
-            <div id="login-tab" class="auth-tab active" onclick="showTab('login')">登录</div>
-            <div id="register-tab" class="auth-tab" onclick="showTab('register')">注册</div>
+<!--登录注册-->
+<div id="authBox" class="auth-box">
+    <div class="auth-tab">
+        <div id="tabLogin" class="active" onclick="switchTab('login')">登录</div>
+        <div id="tabReg" onclick="switchTab('reg')">注册</div>
+    </div>
+    <!--登录表单-->
+    <div id="loginBox">
+        <div class="form-item">
+            <input id="loginUser" placeholder="用户名">
         </div>
-        
-        <!-- 登录表单 -->
-        <div id="login-form" class="auth-form">
-            <input type="text" id="login-username" placeholder="用户名" required>
-            <input type="password" id="login-password" placeholder="密码" required>
-            <div class="remember-me">
-                <input type="checkbox" id="remember-me" checked>
-                <label for="remember-me">记住密码</label>
+        <div class="form-item">
+            <input id="loginPwd" type="password" placeholder="密码">
+        </div>
+        <div class="form-item">
+            <label><input type="checkbox" id="remPwd" checked>记住密码</label>
+        </div>
+        <div class="err" id="loginErr"></div>
+        <button class="btn btn-green" onclick="userLogin()">登录</button>
+    </div>
+    <!--注册表单-->
+    <div id="regBox" class="hidden">
+        <div class="form-item">
+            <input id="regUser" placeholder="用户名(字母+数字 3~15位)">
+        </div>
+        <div class="form-item">
+            <input id="regPwd" type="password" placeholder="密码≥6位">
+        </div>
+        <div class="form-item">
+            <input id="regPwd2" type="password" placeholder="确认密码">
+        </div>
+        <div class="err" id="regErr"></div>
+        <button class="btn btn-yellow" onclick="userRegister()">注册并登录</button>
+    </div>
+</div>
+
+<!--主界面-->
+<div id="mainBox" class="main-box hidden">
+    <div class="sidebar">
+        <div class="myinfo">
+            <img id="myAvt" class="avatar">
+            <div>
+                <div id="myName"></div>
+                <div id="myID" class="id-text" onclick="copySelfID()">点击复制ID</div>
+                <div style="font-size:12px;color:#28b944">在线</div>
             </div>
-            <div id="login-error" class="error"></div>
-            <button class="btn btn-green" onclick="login()">登录</button>
+            <button class="btn" onclick="alert('个人主页后续扩展')">主页</button>
         </div>
-        
-        <!-- 注册表单 -->
-        <div id="register-form" class="auth-form hidden">
-            <input type="text" id="register-username" placeholder="用户名 (字母+数字，3-15位)" required>
-            <input type="password" id="register-password" placeholder="密码 (至少6位)" required>
-            <input type="password" id="register-confirm" placeholder="确认密码" required>
-            <div id="register-error" class="error"></div>
-            <button class="btn btn-yellow" onclick="register()">注册并登录</button>
+        <div class="menu-bar">
+            <button class="btn" onclick="loadFriend()">好友</button>
+            <button class="btn" onclick="openApplyBox()">申请<span id="applyBadge" class="badge hidden">0</span></button>
+            <button class="btn btn-yellow" onclick="openAddFriendBox()">加好友</button>
+        </div>
+        <div id="friendList" class="contact-list"></div>
+    </div>
+    <div class="chat-wrap">
+        <div class="chat-head" id="chatTitle">选择好友开始聊天</div>
+        <div id="msgWrap" class="msg-container"></div>
+        <div class="input-area">
+            <input class="msg-input" id="sendInput" placeholder="输入消息...">
+            <button class="btn" onclick="sendTextMsg()">发送</button>
         </div>
     </div>
+</div>
 
-    <!-- 主界面 -->
-    <div id="main-container" class="container hidden">
-        <div class="main-layout">
-            <!-- 侧边栏 -->
-            <div class="sidebar">
-                <div class="user-profile">
-                    <img src="https://picsum.photos/id/64/50/50" alt="头像" class="avatar" id="user-avatar">
-                    <div class="user-info">
-                        <div class="username" id="current-username"></div>
-                        <div class="user-id" id="current-userid" onclick="copyMyID()">ID：点击复制</div>
-                        <div class="status">在线</div>
-                    </div>
-                    <button class="btn btn-sm" onclick="showProfilePage()">主页</button>
-                </div>
-                
-                <div class="sidebar-menu">
-                    <button class="btn" onclick="showContacts('friends')">好友</button>
-                    <button class="btn" onclick="showContacts('groups')">群聊</button>
-                    <button class="btn btn-yellow" onclick="openAddFriendModal()">加好友</button>
-                </div>
-                
-                <div class="contact-list" id="contact-list"></div>
-            </div>
-            
-            <!-- 聊天区域 -->
-            <div class="chat-area">
-                <div class="chat-header">
-                    <img src="https://picsum.photos/id/237/40/40" alt="聊天对象头像" class="contact-avatar" id="chat-avatar">
-                    <div class="chat-title" id="chat-title">选择聊天对象</div>
-                    <div class="chat-actions">
-                        <button class="btn btn-sm" id="block-user-btn" onclick="blockUser()" hidden>拉黑</button>
-                        <button class="btn btn-sm" id="remove-friend-btn" onclick="removeFriend()" hidden>删除</button>
-                    </div>
-                </div>
-                
-                <div class="chat-messages" id="chat-messages"></div>
-                
-                <div class="chat-input">
-                    <div class="input-actions">
-                        <div class="input-action-btn" onclick="toggleEmojiPanel()"><i class="far fa-smile"></i></div>
-                        <div class="input-action-btn" onclick="document.getElementById('image-upload').click()"><i class="far fa-image"></i></div>
-                        <div class="input-action-btn" onclick="document.getElementById('file-upload').click()"><i class="far fa-file"></i></div>
-                        <div class="input-action-btn" onclick="startRecording()"><i class="fas fa-microphone"></i></div>
-                    </div>
-                    <textarea class="message-input" id="message-input" placeholder="输入消息..."></textarea>
-                    <button class="btn send-btn" onclick="sendMessage()">发送</button>
-                </div>
-            </div>
-            
-            <!-- 个人主页 -->
-            <div class="profile-page hidden" id="profile-page">
-                <div class="profile-header">
-                    <img src="https://picsum.photos/id/64/100/100" alt="头像" class="profile-avatar" id="profile-avatar">
-                    <div class="profile-info">
-                        <div class="profile-username" id="profile-username"></div>
-                        <div class="profile-id" id="profile-userid" onclick="copyMyID()">用户ID：点击复制</div>
-                        <div class="profile-signature" id="profile-signature">点击编辑签名</div>
-                    </div>
-                    <button class="btn" onclick="editProfile()">编辑资料</button>
-                </div>
-                
-                <div class="profile-album">
-                    <div class="album-title">我的相册</div>
-                    <div class="album-grid" id="album-grid">
-                        <div class="album-item" onclick="addAlbumImage()"><i class="fas fa-plus"></i></div>
-                    </div>
-                </div>
-                
-                <button class="btn btn-green" onclick="backToChat()">返回聊天</button>
-            </div>
+<!--加好友弹窗-->
+<div id="addFriendModal" class="modal hidden">
+    <div class="modal-inner">
+        <h3>通过ID/用户名添加好友</h3>
+        <div class="form-item" style="margin:15px 0">
+            <input id="searchKey" placeholder="填写对方ID或用户名">
+        </div>
+        <div class="err" id="addErr"></div>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-green" onclick="sendFriendApply()">发送申请</button>
+            <button class="btn btn-red" onclick="closeAllModal()">关闭</button>
         </div>
     </div>
+</div>
 
-    <!-- 表情包面板 -->
-    <div id="emoji-panel" class="emoji-panel hidden">
-        <div class="emoji" onclick="insertEmoji('😀')">😀</div>
-        <div class="emoji" onclick="insertEmoji('😂')">😂</div>
-        <div class="emoji" onclick="insertEmoji('😍')">😍</div>
-        <div class="emoji" onclick="insertEmoji('🤔')">🤔</div>
-        <div class="emoji" onclick="insertEmoji('👍')">👍</div>
-        <div class="emoji" onclick="insertEmoji('🎉')">🎉</div>
-        <div class="emoji" onclick="insertEmoji('🤷‍♂️')">🤷‍♂️</div>
-        <div class="emoji" onclick="insertEmoji('❤️')">❤️</div>
+<!--好友申请弹窗-->
+<div id="applyModal" class="modal hidden">
+    <div class="modal-inner">
+        <h3>收到的好友申请</h3>
+        <div id="applyList" style="margin:15px 0;max-height:250px;overflow:auto;"></div>
+        <button class="btn btn-red" onclick="closeAllModal()">关闭</button>
     </div>
+</div>
 
-    <!-- 添加好友弹窗 -->
-    <div id="add-friend-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-title">添加好友（输入用户名/ID）</div>
-            <input type="text" id="search-key" placeholder="输入对方 用户名 或 用户ID" class="auth-form">
-            <div id="add-friend-error" class="error"></div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-green" onclick="searchAndAddFriend()">搜索添加</button>
-                <button class="btn btn-red" onclick="closeModal('add-friend-modal')">取消</button>
-            </div>
-        </div>
-    </div>
+<script>
+let currentUser = null;
+let nowChatUser = null;
+let maxMsgId = 1;
+const USER_KEY = "chatUserList";
+const REM_KEY = "chatRemember";
 
-    <!-- 编辑资料弹窗 -->
-    <div id="edit-profile-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-title">编辑个人资料</div>
-            <input type="text" id="edit-username" placeholder="用户名" class="auth-form">
-            <textarea id="edit-signature" placeholder="个性签名" class="auth-form" rows="3"></textarea>
-            <div style="margin-top: 10px;">
-                <label>更换头像：</label>
-                <input type="file" id="avatar-upload" accept="image/*" onchange="previewAvatar()">
-                <img id="avatar-preview" style="max-width: 100px; margin-top: 10px; display: none;">
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-green" onclick="saveProfile()">保存</button>
-                <button class="btn btn-red" onclick="closeModal('edit-profile-modal')">取消</button>
-            </div>
-        </div>
-    </div>
+//生成8位大写ID
+function createUID(){
+    return Math.random().toString(36).slice(2,10).toUpperCase();
+}
 
-    <script>
-        let currentUser = null;
-        let currentChat = null;
-        let ws = null;
-        let isRecording = false;
-        let mediaRecorder = null;
-        let recordedChunks = [];
+//切换登录注册标签
+function switchTab(type){
+    if(type==='login'){
+        document.getElementById('loginBox').classList.remove('hidden');
+        document.getElementById('regBox').classList.add('hidden');
+        document.getElementById('tabLogin').classList.add('active');
+        document.getElementById('tabReg').classList.remove('active');
+    }else{
+        document.getElementById('loginBox').classList.add('hidden');
+        document.getElementById('regBox').classList.remove('hidden');
+        document.getElementById('tabLogin').classList.remove('active');
+        document.getElementById('tabReg').classList.add('active');
+    }
+}
 
-        document.addEventListener('DOMContentLoaded', initApp);
+//注册
+function userRegister(){
+    const name = document.getElementById('regUser').value.trim();
+    const pwd = document.getElementById('regPwd').value;
+    const pwd2 = document.getElementById('regPwd2').value;
+    const errDom = document.getElementById('regErr');
+    //账号正则：字母+数字3-15位
+    const reg = /^[a-zA-Z0-9]{3,15}$/;
+    if(!reg.test(name)){
+        errDom.innerText = "用户名仅允许字母+数字，长度3~15";
+        return;
+    }
+    if(pwd.length<6){
+        errDom.innerText = "密码最少6位";
+        return;
+    }
+    if(pwd!==pwd2){
+        errDom.innerText = "两次密码不一致";
+        return;
+    }
+    //读取用户列表
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY)||'[]');
+    if(userArr.find(item=>item.username===name)){
+        errDom.innerText = "用户名已被注册";
+        return;
+    }
+    //创建新用户
+    const newUser = {
+        username:name,
+        password:pwd,
+        userID:createUID(),
+        avatar:"https://picsum.photos/id/"+Math.floor(Math.random()*99),
+        signature:"暂无签名",
+        friend:[],
+        applyList:[],
+        msgRecord:{}
+    };
+    userArr.push(newUser);
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    loginSuccess(newUser);
+}
 
-        // 生成唯一用户ID
-        function generateUserID() {
-            return Math.random().toString(36).substring(2, 10).toUpperCase();
+//登录
+function userLogin(){
+    const name = document.getElementById('loginUser').value.trim();
+    const pwd = document.getElementById('loginPwd').value;
+    const errDom = document.getElementById('loginErr');
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY)||'[]');
+    const findUser = userArr.find(item=>item.username===name&&item.password===pwd);
+    if(!findUser){
+        errDom.innerText = "用户名或密码错误";
+        return;
+    }
+    //记住密码
+    if(document.getElementById('remPwd').checked){
+        localStorage.setItem(REM_KEY,JSON.stringify({user:name,pwd:pwd}));
+    }else{
+        localStorage.removeItem(REM_KEY);
+    }
+    loginSuccess(findUser);
+}
+
+//登录成功渲染页面
+function loginSuccess(user){
+    currentUser = user;
+    document.getElementById('authBox').classList.add('hidden');
+    document.getElementById('mainBox').classList.remove('hidden');
+    document.getElementById('myName').innerText = user.username;
+    document.getElementById('myID').innerText = "ID："+user.userID+"（点击复制）";
+    document.getElementById('myAvt').src = user.avatar;
+    loadFriend();
+    refreshApplyBadge();
+}
+
+//页面初始化，自动登录
+window.onload = function(){
+    let rem = localStorage.getItem(REM_KEY);
+    if(rem){
+        const info = JSON.parse(rem);
+        let arr = JSON.parse(localStorage.getItem(USER_KEY)||'[]');
+        const u = arr.find(x=>x.username===info.user&&x.password===info.pwd);
+        if(u) loginSuccess(u);
+    }
+}
+
+//复制自身ID
+function copySelfID(){
+    navigator.clipboard.writeText(currentUser.userID).then(()=>alert("ID复制成功！"));
+}
+
+//加载好友列表
+function loadFriend(){
+    const wrap = document.getElementById('friendList');
+    wrap.innerHTML = "";
+    currentUser.friend.forEach(fName=>{
+        let allUser = JSON.parse(localStorage.getItem(USER_KEY));
+        const fUser = allUser.find(x=>x.username===fName);
+        const div = document.createElement('div');
+        div.className = "contact-item";
+        div.innerHTML = `<img class="avatar" src="${fUser.avatar}"><div>${fName}<br><span style="font-size:11px;color:#666">ID:${fUser.userID}</span></div>`;
+        div.onclick = ()=>openChat(fName);
+        wrap.appendChild(div);
+    })
+}
+
+//打开聊天
+function openChat(fName){
+    nowChatUser = fName;
+    document.getElementById('chatTitle').innerText = "正在和"+fName+"聊天";
+    loadChatRecord();
+}
+
+//加载聊天记录
+function loadChatRecord(){
+    const wrap = document.getElementById('msgWrap');
+    wrap.innerHTML = "";
+    if(!currentUser.msgRecord[nowChatUser]) return;
+    currentUser.msgRecord[nowChatUser].forEach(item=>renderMsg(item));
+    wrap.scrollTop = wrap.scrollHeight;
+    markMsgRead();
+}
+
+//渲染单条消息
+function renderMsg(msg){
+    const wrap = document.getElementById('msgWrap');
+    const div = document.createElement('div');
+    div.className = "msg-item "+(msg.from===currentUser.username?"msg-self":"");
+    if(msg.recall){
+        div.innerHTML = `<div class="recall-text">消息已撤回</div>`;
+    }else{
+        let html = `<div class="msg-content">${msg.content}</div>`;
+        if(msg.from===currentUser.username){
+            html += `<span class="read-tag">${msg.read?"已读":"未读"}</span>`;
+            html += `<div class="recall-btn" onclick="recallMsg(${msg.id})">撤回</div>`;
         }
+        div.innerHTML = html;
+    }
+    wrap.appendChild(div);
+}
 
-        function initApp() {
-            const saved = localStorage.getItem('rememberedUser');
-            if (saved) {
-                const u = JSON.parse(saved);
-                autoLogin(u.username, u.password);
-            }
-            initWebSocket();
-        }
+//发送文字消息
+function sendTextMsg(){
+    const input = document.getElementById('sendInput');
+    const val = input.value.trim();
+    if(!val||!nowChatUser) return;
+    const msgObj = {
+        id:maxMsgId++,
+        from:currentUser.username,
+        to:nowChatUser,
+        content:val,
+        read:false,
+        recall:false
+    }
+    //存入双方记录
+    saveMsgToUser(msgObj);
+    renderMsg(msgObj);
+    input.value = "";
+    document.getElementById('msgWrap').scrollTop = document.getElementById('msgWrap').scrollHeight;
+}
 
-        function initWebSocket() {
-            ws = new WebSocket('wss://echo.websocket.events/');
-            ws.onopen = () => currentUser && ws.send(JSON.stringify({type:'login',username:currentUser.username}));
-            ws.onmessage = (e) => handleMsg(JSON.parse(e.data));
-            ws.onclose = () => setTimeout(initWebSocket,3000);
-        }
+//保存消息到用户数据
+function saveMsgToUser(msg){
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    //我方
+    const me = userArr.find(x=>x.username===currentUser.username);
+    if(!me.msgRecord[msg.to]) me.msgRecord[msg.to] = [];
+    me.msgRecord[msg.to].push(msg);
+    //对方
+    const target = userArr.find(x=>x.username===msg.to);
+    if(!target.msgRecord[msg.from]) target.msgRecord[msg.from] = [];
+    target.msgRecord[msg.from].push(msg);
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+}
 
-        function handleMsg(data) {
-            if(['message','image','file','voice'].includes(data.type)){
-                addMessage(data.from, data.content, data.type, data.file);
-            }
-        }
+//撤回消息
+function recallMsg(mid){
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const me = userArr.find(x=>x.username===currentUser.username);
+    //修改我方
+    me.msgRecord[nowChatUser] = me.msgRecord[nowChatUser].map(item=>{
+        if(item.id===mid) item.recall = true;
+        return item;
+    })
+    //修改对方
+    const tar = userArr.find(x=>x.username===nowChatUser);
+    tar.msgRecord[currentUser.username] = tar.msgRecord[currentUser.username].map(item=>{
+        if(item.id===mid) item.recall = true;
+        return item;
+    })
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    loadChatRecord();
+}
 
-        function showTab(t){
-            document.getElementById('login-form').classList.toggle('hidden',t!='login');
-            document.getElementById('register-form').classList.toggle('hidden',t!='register');
-            document.getElementById('login-tab').classList.toggle('active',t=='login');
-            document.getElementById('register-tab').classList.toggle('active',t=='register');
-        }
+//打开加好友弹窗
+function openAddFriendBox(){
+    closeAllModal();
+    document.getElementById('addFriendModal').classList.remove('hidden');
+    document.getElementById('searchKey').value = "";
+    document.getElementById('addErr').innerText = "";
+}
 
-        // 注册（自动生成唯一ID）
-        function register() {
-            const u = document.getElementById('register-username').value.trim();
-            const p = document.getElementById('register-password').value;
-            const c = document.getElementById('register-confirm').value;
-            const err = document.getElementById('register-error');
+//打开申请弹窗
+function openApplyBox(){
+    closeAllModal();
+    document.getElementById('applyModal').classList.remove('hidden');
+    renderApplyList();
+}
 
-            if(!/^[a-zA-Z0-9]{3,15}$/.test(u)){err.textContent='用户名3-15位字母数字';return;}
-            if(p.length<6){err.textContent='密码至少6位';return;}
-            if(p!==c){err.textContent='密码不一致';return;}
+//关闭所有弹窗
+function closeAllModal(){
+    document.getElementById('addFriendModal').classList.add('hidden');
+    document.getElementById('applyModal').classList.add('hidden');
+}
 
-            const users = JSON.parse(localStorage.getItem('chatUsers')||'[]');
-            if(users.some(x=>x.username===u)){err.textContent='用户名已存在';return;}
+//发送好友申请
+function sendFriendApply(){
+    const key = document.getElementById('searchKey').value.trim();
+    const errDom = document.getElementById('addErr');
+    if(!key){errDom.innerText="请输入ID或用户名";return;}
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const target = userArr.find(x=>x.username===key||x.userID===key);
+    if(!target){errDom.innerText="未找到该用户";return;}
+    if(target.username===currentUser.username){errDom.innerText="不能添加自己";return;}
+    if(target.applyList.find(x=>x.fromName===currentUser.username)){errDom.innerText="已经发送过申请";return;}
+    //写入对方申请列表
+    target.applyList.push({
+        fromName:currentUser.username,
+        fromID:currentUser.userID,
+        time:new Date().toLocaleString()
+    })
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    alert("好友申请发送成功！等待对方同意");
+    closeAllModal();
+}
 
-            const user = {
-                username:u, password:p, userID:generateUserID(),
-                avatar:`https://picsum.photos/id/${Math.floor(Math.random()*100)}`,
-                signature:'这家伙很懒', friends:[], blocked:[], album:[], messages:{}
-            };
+//渲染收到的申请
+function renderApplyList(){
+    const wrap = document.getElementById('applyList');
+    wrap.innerHTML = "";
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const me = userArr.find(x=>x.username===currentUser.username);
+    if(me.applyList.length===0){
+        wrap.innerText = "暂无好友申请";
+        return;
+    }
+    me.applyList.forEach(item=>{
+        const div = document.createElement('div');
+        div.style.padding = "8px 0";
+        div.style.borderBottom = "1px solid #eee";
+        div.innerHTML = `【${item.fromName}】发起好友申请 ${item.time}
+        <div style="margin-top:6px;gap:8px;display:flex">
+            <button class="btn btn-green" onclick="agreeApply('${item.fromName}')">同意</button>
+            <button class="btn btn-red" onclick="refuseApply('${item.fromName}')">拒绝</button>
+        </div>`;
+        wrap.appendChild(div);
+    })
+}
 
-            users.push(user);
-            localStorage.setItem('chatUsers',JSON.stringify(users));
-            loginSuccess(user);
-        }
+//同意好友
+function agreeApply(fromName){
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const me = userArr.find(x=>x.username===currentUser.username);
+    const fromUser = userArr.find(x=>x.username===fromName);
+    //互相加好友
+    if(!me.friend.includes(fromName)) me.friend.push(fromName);
+    if(!fromUser.friend.includes(currentUser.username)) fromUser.friend.push(currentUser.username);
+    //删除申请
+    me.applyList = me.applyList.filter(x=>x.fromName!==fromName);
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    loadFriend();
+    refreshApplyBadge();
+    renderApplyList();
+    alert("已添加为好友");
+}
 
-        function login() {
-            const u = document.getElementById('login-username').value.trim();
-            const p = document.getElementById('login-password').value;
-            const err = document.getElementById('login-error');
-            const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===u&&x.password===p);
-            if(!user){err.textContent='账号密码错误';return;}
-            loginSuccess(user);
-        }
+//拒绝好友
+function refuseApply(fromName){
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const me = userArr.find(x=>x.username===currentUser.username);
+    me.applyList = me.applyList.filter(x=>x.fromName!==fromName);
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    refreshApplyBadge();
+    renderApplyList();
+}
 
-        function autoLogin(u,p){
-            const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===u&&x.password===p);
-            user && loginSuccess(user);
-        }
+//刷新申请角标
+function refreshApplyBadge(){
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const me = userArr.find(x=>x.username===currentUser.username);
+    const badge = document.getElementById('applyBadge');
+    if(me.applyList.length>0){
+        badge.classList.remove('hidden');
+        badge.innerText = me.applyList.length;
+    }else{
+        badge.classList.add('hidden');
+    }
+}
 
-        function loginSuccess(user){
-            currentUser = user;
-            if(document.getElementById('remember-me').checked){
-                localStorage.setItem('rememberedUser',JSON.stringify({username:user.username,password:user.password}));
-            }
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('main-container').classList.remove('hidden');
-            updateUI();
-            loadContacts();
-        }
-
-        // 复制自己的ID
-        function copyMyID(){
-            navigator.clipboard.writeText(currentUser.userID).then(()=>alert('ID已复制！'));
-        }
-
-        // 搜索+添加好友（支持用户名/ID）
-        function searchAndAddFriend(){
-            const key = document.getElementById('search-key').value.trim();
-            const err = document.getElementById('add-friend-error');
-            if(!key){err.textContent='请输入内容';return;}
-
-            const users = JSON.parse(localStorage.getItem('chatUsers')||'[]');
-            const target = users.find(x=>x.username===key || x.userID===key);
-
-            if(!target){err.textContent='用户不存在';return;}
-            if(target.username===currentUser.username){err.textContent='不能加自己';return;}
-            if(currentUser.friends.includes(target.username)){err.textContent='已是好友';return;}
-
-            currentUser.friends.push(target.username);
-            target.friends.push(currentUser.username);
-            saveUsers();
-            alert('添加成功！');
-            closeModal('add-friend-modal');
-            loadContacts();
-        }
-
-        function updateUI(){
-            document.getElementById('current-username').textContent=currentUser.username;
-            document.getElementById('current-userid').textContent=`ID：${currentUser.userID}（点击复制）`;
-            document.getElementById('user-avatar').src=currentUser.avatar;
-            document.getElementById('profile-username').textContent=currentUser.username;
-            document.getElementById('profile-userid').textContent=`用户ID：${currentUser.userID}（点击复制）`;
-            document.getElementById('profile-signature').textContent=currentUser.signature;
-            document.getElementById('profile-avatar').src=currentUser.avatar;
-            loadAlbum();
-        }
-
-        function loadContacts(t='friends'){
-            const list = document.getElementById('contact-list');
-            list.innerHTML='';
-            if(t==='friends'){
-                currentUser.friends.forEach(f=>{
-                    const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===f);
-                    list.innerHTML+=`
-                    <div class="contact-item" onclick="startChat('${f}')">
-                        <img src="${user?.avatar||'https://picsum.photos/id/237'}" class="contact-avatar">
-                        <div class="contact-info"><div class="contact-name">${f}</div><div>ID：${user?.userID}</div></div>
-                    </div>`;
-                });
-            }else{
-                list.innerHTML=`<div class="contact-item" onclick="startChat('系统群聊',true)"><img src="https://picsum.photos/id/100" class="contact-avatar"><div class="contact-name">系统群聊</div></div>`;
-            }
-        }
-
-        function startChat(name,isGroup=false){
-            currentChat={name,isGroup};
-            const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===name);
-            document.getElementById('chat-title').textContent=name;
-            document.getElementById('chat-avatar').src=isGroup?'https://picsum.photos/id/100':user?.avatar||'https://picsum.photos/id/237';
-            document.getElementById('block-user-btn').hidden=isGroup;
-            document.getElementById('remove-friend-btn').hidden=isGroup;
-            loadHistory();
-        }
-
-        // 以下为原有完整功能（聊天、多媒体、个人主页、拉黑、相册等）
-        function sendMessage(){const i=document.getElementById('message-input');const c=i.value.trim();if(!c||!currentChat)return;addMessage(currentUser.username,c,'message');i.value='';}
-        function sendImage(){const f=document.getElementById('image-upload').files[0];if(!f||!currentChat)return;const r=new FileReader();r.onload=e=>addMessage(currentUser.username,'图片','image',{data:e.target.result,name:f.name});r.readAsDataURL(f);}
-        function sendFile(){const f=document.getElementById('file-upload').files[0];if(!f||!currentChat)return;const r=new FileReader();r.onload=e=>addMessage(currentUser.username,`文件：${f.name}`,'file',{data:e.target.result,name:f.name,size:f.size});r.readAsDataURL(f);}
-        function startRecording(){if(isRecording){stopRecording();return;}navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{isRecording=true;mediaRecorder=new MediaRecorder(s);mediaRecorder.ondataavailable=e=>recordedChunks.push(e.data);mediaRecorder.onstop=()=>{const b=new Blob(recordedChunks,{type:'audio/wav'});const r=new FileReader();r.onload=e=>addMessage(currentUser.username,'语音','voice',{data:e.target.result});r.readAsDataURL(b);s.getTracks().forEach(t=>t.stop());};mediaRecorder.start();document.querySelector('.fa-microphone').style.color='red';});}
-        function stopRecording(){if(mediaRecorder&&isRecording){mediaRecorder.stop();isRecording=false;document.querySelector('.fa-microphone').style.color='';}}
-        function addMessage(from,content,type,file){
-            const box=document.getElementById('chat-messages');
-            const isMe=from===currentUser.username;
-            let html=`<div class="message ${isMe?'self':'other'}"><div class="message-content">`;
-            if(type==='message')html+=content;
-            else if(type==='image')html+=`<img src="${file.data}" class="message-image">`;
-            else if(type==='file')html+=`<div class="message-file"><i class="far fa-file"></i><div>${file.name}</div><button class="btn" onclick="download('${file.data}','${file.name}')">下载</button></div>`;
-            else if(type==='voice')html+=`<div class="message-voice"><i class="fas fa-volume-up" onclick="play('${file.data}')"></i>语音</div>`;
-            html+=`</div><div class="message-time">${new Date().toLocaleTimeString()}</div></div>`;
-            box.innerHTML+=html;
-            box.scrollTop=box.scrollHeight;
-        }
-        function toggleEmojiPanel(){document.getElementById('emoji-panel').classList.toggle('hidden');}
-        function insertEmoji(e){document.getElementById('message-input').value+=e;toggleEmojiPanel();}
-        function openAddFriendModal(){document.getElementById('add-friend-modal').classList.remove('hidden');document.getElementById('add-friend-error').textContent='';}
-        function closeModal(id){document.getElementById(id).classList.add('hidden');}
-        function blockUser(){if(!currentChat||currentChat.isGroup)return;confirm('拉黑？')&&(currentUser.friends=currentUser.friends.filter(x=>x!==currentChat.name),currentUser.blocked.push(currentChat.name),saveUsers(),alert('已拉黑'),startChat('选择聊天对象'));}
-        function removeFriend(){if(!currentChat||currentChat.isGroup)return;confirm('删除？')&&(currentUser.friends=currentUser.friends.filter(x=>x!==currentChat.name),saveUsers(),alert('已删除'),startChat('选择聊天对象'));}
-        function showProfilePage(){document.querySelector('.chat-area').classList.add('hidden');document.getElementById('profile-page').classList.remove('hidden');}
-        function backToChat(){document.getElementById('profile-page').classList.add('hidden');document.querySelector('.chat-area').classList.remove('hidden');}
-        function editProfile(){document.getElementById('edit-profile-modal').classList.remove('hidden');document.getElementById('edit-username').value=currentUser.username;document.getElementById('edit-signature').value=currentUser.signature;}
-        function previewAvatar(){const f=document.getElementById('avatar-upload').files[0];if(!f)return;const r=new FileReader();r.onload=e=>{document.getElementById('avatar-preview').src=e.target.result;document.getElementById('avatar-preview').style.display='block';};r.readAsDataURL(f);}
-        function saveProfile(){const u=document.getElementById('edit-username').value.trim();const s=document.getElementById('edit-signature').value.trim();const a=document.getElementById('avatar-preview').src;currentUser.username=u;currentUser.signature=s;a&&(currentUser.avatar=a);saveUsers();updateUI();alert('保存成功');closeModal('edit-profile-modal');}
-        function addAlbumImage(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=e=>{const r=new FileReader();r.onload=e=>{currentUser.album.push(e.target.result);saveUsers();loadAlbum();};r.readAsDataURL(e.target.files[0]);};i.click();}
-        function loadAlbum(){const g=document.getElementById('album-grid');const add=g.querySelector('.album-item');g.innerHTML='';currentUser.album.forEach(i=>g.innerHTML+=`<div class="album-item"><img src="${i}"></div>`);g.appendChild(add);}
-        function saveUsers(){const users=JSON.parse(localStorage.getItem('chatUsers')||'[]');const i=users.findIndex(x=>x.userID===currentUser.userID);i!==-1&&(users[i]=currentUser,localStorage.setItem('chatUsers',JSON.stringify(users)));}
-        function download(url,name){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
-        function play(url){new Audio(url).play();}
-        function loadHistory(){}
-        function showContacts(t){loadContacts(t);}
-    </script>
+//打开聊天自动标记已读
+function markMsgRead(){
+    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
+    const me = userArr.find(x=>x.username===currentUser.username);
+    if(!me.msgRecord[nowChatUser]) return;
+    me.msgRecord[nowChatUser] = me.msgRecord[nowChatUser].map(item=>{
+        if(item.from===nowChatUser) item.read = true;
+        return item;
+    })
+    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    loadChatRecord();
+}
+</script>
 </body>
 </html>
