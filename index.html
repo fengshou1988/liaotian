@@ -1,316 +1,450 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>全功能聊天系统</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: { extend: { colors: { primary: '#4F46E5' } } }
-    }
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全能聊天系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: '微软雅黑', sans-serif; }
+        body { background-color: #f5f5f5; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none !important; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; background: #4285f4; color: white; cursor: pointer; }
+        .btn:hover { background: #3367d6; }
+        .btn-yellow { background: #fbbc05; }
+        .btn-yellow:hover { background: #e6b200; }
+        .btn-red { background: #ea4335; }
+        .btn-red:hover { background: #d93025; }
+        .btn-green { background: #34a853; }
+        .btn-green:hover { background: #2a8d46; }
+        .copy-btn { font-size: 12px; padding: 4px 8px; margin-left: 8px; }
+        
+        /* 登录注册界面 */
+        .auth-container { max-width: 400px; margin: 50px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .auth-tabs { display: flex; margin-bottom: 20px; }
+        .auth-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; background: #eee; }
+        .auth-tab.active { background: #4285f4; color: white; }
+        .auth-form { display: flex; flex-direction: column; gap: 15px; }
+        .auth-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .auth-form .error { color: #ea4335; font-size: 14px; }
+        .remember-me { display: flex; align-items: center; gap: 5px; }
+        
+        /* 主界面布局 */
+        .main-layout { display: flex; height: calc(100vh - 40px); background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        
+        /* 侧边栏 */
+        .sidebar { width: 260px; border-right: 1px solid #eee; display: flex; flex-direction: column; }
+        .user-profile { padding: 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
+        .avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+        .user-info { flex: 1; }
+        .username { font-weight: bold; }
+        .status { font-size: 12px; color: #34a853; }
+        .user-id { font-size: 12px; color: #666; margin-top: 3px; cursor: pointer; }
+        .sidebar-menu { display: flex; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
+        .sidebar-menu button { flex: 1; }
+        .contact-list { flex: 1; overflow-y: auto; }
+        .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; gap: 12px; }
+        .contact-item:hover { background: #f5f5f5; }
+        .contact-item.active { background: #e8f0fe; }
+        .contact-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .contact-info { flex: 1; }
+        .contact-name { font-weight: 500; }
+        .contact-lastmsg { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .contact-time { font-size: 11px; color: #999; }
+        
+        /* 聊天区域 */
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .chat-header { padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
+        .chat-title { font-weight: bold; }
+        .chat-actions { margin-left: auto; display: flex; gap: 10px; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; background: #f8f9fa; }
+        .message { display: flex; margin-bottom: 15px; max-width: 80%; }
+        .message.self { justify-content: flex-end; }
+        .message.other { justify-content: flex-start; }
+        .message-content { padding: 10px 15px; border-radius: 18px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .message.self .message-content { background: #4285f4; color: white; }
+        .message-image { max-width: 200px; max-height: 200px; border-radius: 8px; }
+        .message-file { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e8f0fe; border-radius: 8px; }
+        .message-voice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f3f3; border-radius: 20px; }
+        .message-time { font-size: 11px; color: #999; margin-top: 5px; text-align: right; }
+        
+        /* 聊天输入区 */
+        .chat-input { padding: 15px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
+        .input-actions { display: flex; gap: 8px; }
+        .input-action-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f5f5f5; }
+        .input-action-btn:hover { background: #eee; }
+        .message-input { flex: 1; padding: 12px 15px; border: 1px solid #ddd; border-radius: 24px; outline: none; resize: none; height: 48px; }
+        .send-btn { padding: 10px 20px; border-radius: 24px; }
+        input[type="file"] { display: none; }
+        
+        /* 个人主页 */
+        .profile-page { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        .profile-header { display: flex; align-items: center; gap: 20px; }
+        .profile-avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .profile-info { flex: 1; }
+        .profile-username { font-size: 24px; font-weight: bold; }
+        .profile-id { font-size: 14px; color: #4285f4; margin: 5px 0; cursor: pointer; }
+        .profile-signature { margin-top: 5px; color: #666; }
+        .profile-edit-btn { align-self: flex-start; }
+        .profile-album { margin-top: 20px; }
+        .album-title { font-weight: bold; margin-bottom: 15px; }
+        .album-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .album-item { width: 100%; aspect-ratio: 1; background: #f5f5f5; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .album-item img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* 表情包面板 */
+        .emoji-panel { position: absolute; bottom: 70px; right: 20px; width: 300px; height: 200px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 10px; overflow-y: auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; z-index: 999; }
+        .emoji { font-size: 24px; cursor: pointer; text-align: center; padding: 5px; }
+        .emoji:hover { background: #f5f5f5; border-radius: 4px; }
+        
+        /* 弹窗 */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; max-width: 90%; }
+        .modal-title { font-weight: bold; font-size: 18px; margin-bottom: 20px; }
+        .modal-close { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 20px; }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 h-screen overflow-hidden">
-<!-- 登录注册弹窗 -->
-<div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-  <div class="bg-white rounded-2xl w-full max-w-md p-6">
-    <div class="text-center mb-4">
-      <h1 class="text-2xl font-bold text-primary">聊天交友系统</h1>
+<body>
+    <!-- 登录注册界面 -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-tabs">
+            <div id="login-tab" class="auth-tab active" onclick="showTab('login')">登录</div>
+            <div id="register-tab" class="auth-tab" onclick="showTab('register')">注册</div>
+        </div>
+        
+        <!-- 登录表单 -->
+        <div id="login-form" class="auth-form">
+            <input type="text" id="login-username" placeholder="用户名" required>
+            <input type="password" id="login-password" placeholder="密码" required>
+            <div class="remember-me">
+                <input type="checkbox" id="remember-me" checked>
+                <label for="remember-me">记住密码</label>
+            </div>
+            <div id="login-error" class="error"></div>
+            <button class="btn btn-green" onclick="login()">登录</button>
+        </div>
+        
+        <!-- 注册表单 -->
+        <div id="register-form" class="auth-form hidden">
+            <input type="text" id="register-username" placeholder="用户名 (字母+数字，3-15位)" required>
+            <input type="password" id="register-password" placeholder="密码 (至少6位)" required>
+            <input type="password" id="register-confirm" placeholder="确认密码" required>
+            <div id="register-error" class="error"></div>
+            <button class="btn btn-yellow" onclick="register()">注册并登录</button>
+        </div>
     </div>
-    <div class="flex gap-2 mb-4">
-      <button id="loginTab" class="flex-1 py-2 border-b-2 border-primary font-semibold">登录</button>
-      <button id="regTab" class="flex-1 py-2 text-gray-500">注册</button>
+
+    <!-- 主界面 -->
+    <div id="main-container" class="container hidden">
+        <div class="main-layout">
+            <!-- 侧边栏 -->
+            <div class="sidebar">
+                <div class="user-profile">
+                    <img src="https://picsum.photos/id/64/50/50" alt="头像" class="avatar" id="user-avatar">
+                    <div class="user-info">
+                        <div class="username" id="current-username"></div>
+                        <div class="user-id" id="current-userid" onclick="copyMyID()">ID：点击复制</div>
+                        <div class="status">在线</div>
+                    </div>
+                    <button class="btn btn-sm" onclick="showProfilePage()">主页</button>
+                </div>
+                
+                <div class="sidebar-menu">
+                    <button class="btn" onclick="showContacts('friends')">好友</button>
+                    <button class="btn" onclick="showContacts('groups')">群聊</button>
+                    <button class="btn btn-yellow" onclick="openAddFriendModal()">加好友</button>
+                </div>
+                
+                <div class="contact-list" id="contact-list"></div>
+            </div>
+            
+            <!-- 聊天区域 -->
+            <div class="chat-area">
+                <div class="chat-header">
+                    <img src="https://picsum.photos/id/237/40/40" alt="聊天对象头像" class="contact-avatar" id="chat-avatar">
+                    <div class="chat-title" id="chat-title">选择聊天对象</div>
+                    <div class="chat-actions">
+                        <button class="btn btn-sm" id="block-user-btn" onclick="blockUser()" hidden>拉黑</button>
+                        <button class="btn btn-sm" id="remove-friend-btn" onclick="removeFriend()" hidden>删除</button>
+                    </div>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages"></div>
+                
+                <div class="chat-input">
+                    <div class="input-actions">
+                        <div class="input-action-btn" onclick="toggleEmojiPanel()"><i class="far fa-smile"></i></div>
+                        <div class="input-action-btn" onclick="document.getElementById('image-upload').click()"><i class="far fa-image"></i></div>
+                        <div class="input-action-btn" onclick="document.getElementById('file-upload').click()"><i class="far fa-file"></i></div>
+                        <div class="input-action-btn" onclick="startRecording()"><i class="fas fa-microphone"></i></div>
+                    </div>
+                    <textarea class="message-input" id="message-input" placeholder="输入消息..."></textarea>
+                    <button class="btn send-btn" onclick="sendMessage()">发送</button>
+                </div>
+            </div>
+            
+            <!-- 个人主页 -->
+            <div class="profile-page hidden" id="profile-page">
+                <div class="profile-header">
+                    <img src="https://picsum.photos/id/64/100/100" alt="头像" class="profile-avatar" id="profile-avatar">
+                    <div class="profile-info">
+                        <div class="profile-username" id="profile-username"></div>
+                        <div class="profile-id" id="profile-userid" onclick="copyMyID()">用户ID：点击复制</div>
+                        <div class="profile-signature" id="profile-signature">点击编辑签名</div>
+                    </div>
+                    <button class="btn" onclick="editProfile()">编辑资料</button>
+                </div>
+                
+                <div class="profile-album">
+                    <div class="album-title">我的相册</div>
+                    <div class="album-grid" id="album-grid">
+                        <div class="album-item" onclick="addAlbumImage()"><i class="fas fa-plus"></i></div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-green" onclick="backToChat()">返回聊天</button>
+            </div>
+        </div>
     </div>
-    <!-- 登录 -->
-    <div id="loginBox" class="space-y-3">
-      <input placeholder="账号(字母+数字)" id="loginAccount" class="w-full p-3 border rounded-lg">
-      <input placeholder="密码" type="password" id="loginPwd" class="w-full p-3 border rounded-lg">
-      <!-- 记住密码复选框 -->
-      <div class="flex items-center gap-2">
-        <input type="checkbox" id="rememberPwd" class="w-4 h-4">
-        <label class="text-sm text-gray-600">记住账号密码</label>
-      </div>
-      <button onclick="login()" class="w-full bg-primary text-white p-3 rounded-lg">登录</button>
+
+    <!-- 表情包面板 -->
+    <div id="emoji-panel" class="emoji-panel hidden">
+        <div class="emoji" onclick="insertEmoji('😀')">😀</div>
+        <div class="emoji" onclick="insertEmoji('😂')">😂</div>
+        <div class="emoji" onclick="insertEmoji('😍')">😍</div>
+        <div class="emoji" onclick="insertEmoji('🤔')">🤔</div>
+        <div class="emoji" onclick="insertEmoji('👍')">👍</div>
+        <div class="emoji" onclick="insertEmoji('🎉')">🎉</div>
+        <div class="emoji" onclick="insertEmoji('🤷‍♂️')">🤷‍♂️</div>
+        <div class="emoji" onclick="insertEmoji('❤️')">❤️</div>
     </div>
-    <!-- 注册 -->
-    <div id="regBox" class="hidden space-y-3">
-      <input placeholder="账号(必须字母+数字)" id="regAccount" class="w-full p-3 border rounded-lg">
-      <input placeholder="密码" type="password" id="regPwd" class="w-full p-3 border rounded-lg">
-      <button onclick="register()" class="w-full bg-primary text-white p-3 rounded-lg">注册</button>
+
+    <!-- 添加好友弹窗 -->
+    <div id="add-friend-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-title">添加好友（输入用户名/ID）</div>
+            <input type="text" id="search-key" placeholder="输入对方 用户名 或 用户ID" class="auth-form">
+            <div id="add-friend-error" class="error"></div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-green" onclick="searchAndAddFriend()">搜索添加</button>
+                <button class="btn btn-red" onclick="closeModal('add-friend-modal')">取消</button>
+            </div>
+        </div>
     </div>
-    <p id="tip" class="text-red-500 text-center mt-2"></p>
-  </div>
-</div>
 
-<!-- 主界面 -->
-<div id="main" class="hidden h-screen flex max-w-7xl mx-auto bg-white shadow-xl">
-  <div class="w-72 border-r flex flex-col">
-    <div class="p-4 border-b flex items-center gap-3 cursor-pointer" onclick="openProfile()">
-      <img id="myAvatar" class="w-10 h-10 rounded-full">
-      <div class="flex-1">
-        <h3 id="myName" class="font-semibold"></h3>
-        <p class="text-xs text-green-500">在线</p>
-      </div>
+    <!-- 编辑资料弹窗 -->
+    <div id="edit-profile-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-title">编辑个人资料</div>
+            <input type="text" id="edit-username" placeholder="用户名" class="auth-form">
+            <textarea id="edit-signature" placeholder="个性签名" class="auth-form" rows="3"></textarea>
+            <div style="margin-top: 10px;">
+                <label>更换头像：</label>
+                <input type="file" id="avatar-upload" accept="image/*" onchange="previewAvatar()">
+                <img id="avatar-preview" style="max-width: 100px; margin-top: 10px; display: none;">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-green" onclick="saveProfile()">保存</button>
+                <button class="btn btn-red" onclick="closeModal('edit-profile-modal')">取消</button>
+            </div>
+        </div>
     </div>
-    <div class="p-3 flex gap-2">
-      <button onclick="openAddFriend()" class="flex-1 p-2 bg-primary/10 text-primary rounded-lg">
-        <i class="fa fa-user-plus mr-1"></i>加好友
-      </button>
-      <button onclick="openCreateGroup()" class="flex-1 p-2 bg-primary/10 text-primary rounded-lg">
-        <i class="fa fa-users mr-1"></i>建群聊
-      </button>
-    </div>
-    <div class="flex border-b">
-      <button id="friendTab" class="flex-1 py-2 border-b-2 border-primary font-semibold">好友</button>
-      <button id="groupTab" class="flex-1 py-2 text-gray-500">群聊</button>
-    </div>
-    <div id="list" class="flex-1 overflow-y-auto p-2"></div>
-  </div>
 
-  <div class="flex-1 flex flex-col">
-    <div class="p-4 border-b flex items-center gap-3">
-      <img id="chatAvatar" class="w-10 h-10 rounded-full">
-      <div class="flex-1">
-        <h3 id="chatTitle" class="font-semibold">选择聊天对象</h3>
-      </div>
-    </div>
-    <div id="chatContent" class="flex-1 bg-gray-50 p-4 overflow-y-auto"></div>
-    <div class="p-3 border-t flex items-center gap-2">
-      <button onclick="openEmoji()" class="text-xl text-gray-500"><i class="fa fa-smile-o"></i></button>
-      <button onclick="sendFile('image')" class="text-xl text-gray-500"><i class="fa fa-picture-o"></i></button>
-      <button onclick="sendFile('file')" class="text-xl text-gray-500"><i class="fa fa-file-o"></i></button>
-      <button onclick="recordVoice()" class="text-xl text-gray-500"><i class="fa fa-microphone"></i></button>
-      <input id="msgInput" class="flex-1 p-2 border rounded-lg" placeholder="输入消息...">
-      <button onclick="sendMsg()" class="bg-primary text-white px-4 py-2 rounded-lg">发送</button>
-    </div>
-  </div>
-</div>
+    <script>
+        let currentUser = null;
+        let currentChat = null;
+        let ws = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
 
-<!-- 个人主页弹窗 -->
-<div id="profileModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-  <div class="bg-white rounded-xl w-full max-w-sm p-5">
-    <h3 class="text-lg font-bold mb-3">个人主页</h3>
-    <div class="space-y-3">
-      <img id="profileAvatar" class="w-20 h-20 rounded-full mx-auto">
-      <input id="profileSign" class="w-full p-2 border rounded-lg" placeholder="个性签名">
-      <div class="flex gap-2 flex-wrap">
-        <div id="albumArea" class="flex gap-2 flex-wrap mb-2"></div>
-        <button onclick="uploadAlbum()" class="p-2 border rounded-lg"><i class="fa fa-plus"></i></button>
-      </div>
-      <button onclick="saveProfile()" class="w-full bg-primary text-white p-2 rounded-lg">保存</button>
-    </div>
-  </div>
-</div>
+        document.addEventListener('DOMContentLoaded', initApp);
 
-<script>
-let ws;
-let currentUser = null;
-let currentChat = { type: 'private', id: null };
-const emojiList = ['😀','😁','😂','🤣','😊','😎','😍','🥳','😜','😝'];
+        // 生成唯一用户ID
+        function generateUserID() {
+            return Math.random().toString(36).substring(2, 10).toUpperCase();
+        }
 
-// 页面加载：读取本地记住的账号密码
-window.onload = function() {
-  const localData = localStorage.getItem('chatUser');
-  if (localData) {
-    const { account, pwd } = JSON.parse(localData);
-    loginAccount.value = account;
-    loginPwd.value = pwd;
-    rememberPwd.checked = true;
-  }
-  connectWS();
-}
+        function initApp() {
+            const saved = localStorage.getItem('rememberedUser');
+            if (saved) {
+                const u = JSON.parse(saved);
+                autoLogin(u.username, u.password);
+            }
+            initWebSocket();
+        }
 
-// 连接WebSocket
-function connectWS() {
-  ws = new WebSocket('ws://localhost:3000');
-  ws.onmessage = (e) => {
-    const res = JSON.parse(e.data);
-    handleWsMessage(res);
-  };
-}
+        function initWebSocket() {
+            ws = new WebSocket('wss://echo.websocket.events/');
+            ws.onopen = () => currentUser && ws.send(JSON.stringify({type:'login',username:currentUser.username}));
+            ws.onmessage = (e) => handleMsg(JSON.parse(e.data));
+            ws.onclose = () => setTimeout(initWebSocket,3000);
+        }
 
-// 切换登录注册
-loginTab.onclick = () => { 
-  loginBox.classList.remove('hidden'); 
-  regBox.classList.add('hidden'); 
-  loginTab.classList.add('border-primary'); 
-  regTab.classList.remove('border-primary'); 
-}
-regTab.onclick = () => { 
-  regBox.classList.remove('hidden'); 
-  loginBox.classList.add('hidden'); 
-  regTab.classList.add('border-primary'); 
-  loginTab.classList.remove('border-primary'); 
-}
+        function handleMsg(data) {
+            if(['message','image','file','voice'].includes(data.type)){
+                addMessage(data.from, data.content, data.type, data.file);
+            }
+        }
 
-// 注册
-function register() {
-  const account = regAccount.value, pwd = regPwd.value;
-  ws.send(JSON.stringify({ type: 'register', data: { account, pwd } }));
-}
+        function showTab(t){
+            document.getElementById('login-form').classList.toggle('hidden',t!='login');
+            document.getElementById('register-form').classList.toggle('hidden',t!='register');
+            document.getElementById('login-tab').classList.toggle('active',t=='login');
+            document.getElementById('register-tab').classList.toggle('active',t=='register');
+        }
 
-// 登录
-function login() {
-  const account = loginAccount.value, pwd = loginPwd.value;
-  ws.send(JSON.stringify({ type: 'login', data: { account, pwd } }));
-}
+        // 注册（自动生成唯一ID）
+        function register() {
+            const u = document.getElementById('register-username').value.trim();
+            const p = document.getElementById('register-password').value;
+            const c = document.getElementById('register-confirm').value;
+            const err = document.getElementById('register-error');
 
-// 处理消息
-function handleWsMessage(res) {
-  switch(res.type) {
-    // 注册成功 → 直接自动登录
-    case 'registerRes':
-      tip.innerText = res.data.msg;
-      if (res.data.code === 1) {
-        currentUser = res.data.user;
-        // 保存账号密码（如果需要）
-        saveRememberPwd(currentUser.account, currentUser.pwd);
-        // 直接进入系统
-        authModal.classList.add('hidden');
-        main.classList.remove('hidden');
-        renderUserInfo();
-      }
-      break;
-    // 登录成功
-    case 'loginRes':
-      if(res.data.code===1){
-        currentUser = res.data.user;
-        saveRememberPwd(currentUser.account, currentUser.pwd);
-        authModal.classList.add('hidden');
-        main.classList.remove('hidden');
-        renderUserInfo();
-      }else tip.innerText = res.data.msg;
-      break;
-    case 'userData':
-      renderList(res.data.friendList, res.data.groupList);
-      break;
-    case 'newPrivateMsg':
-      addMessage(res.data, 'other');
-      break;
-    case 'newGroupMsg':
-      addMessage(res.data, 'other');
-      break;
-  }
-}
+            if(!/^[a-zA-Z0-9]{3,15}$/.test(u)){err.textContent='用户名3-15位字母数字';return;}
+            if(p.length<6){err.textContent='密码至少6位';return;}
+            if(p!==c){err.textContent='密码不一致';return;}
 
-// 保存/清除 记住密码
-function saveRememberPwd(account, pwd) {
-  if (rememberPwd.checked) {
-    localStorage.setItem('chatUser', JSON.stringify({ account, pwd }));
-  } else {
-    localStorage.removeItem('chatUser');
-  }
-}
+            const users = JSON.parse(localStorage.getItem('chatUsers')||'[]');
+            if(users.some(x=>x.username===u)){err.textContent='用户名已存在';return;}
 
-// 渲染用户信息
-function renderUserInfo() {
-  myAvatar.src = currentUser.avatar;
-  myName.innerText = currentUser.account;
-}
+            const user = {
+                username:u, password:p, userID:generateUserID(),
+                avatar:`https://picsum.photos/id/${Math.floor(Math.random()*100)}`,
+                signature:'这家伙很懒', friends:[], blocked:[], album:[], messages:{}
+            };
 
-// 渲染列表
-function renderList(friends, groups) {
-  list.innerHTML = '';
-  let showList = friendTab.classList.contains('border-primary') ? friends : groups;
-  showList.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'p-2 hover:bg-gray-100 rounded-lg cursor-pointer flex items-center gap-2 mb-1';
-    div.innerHTML = `
-      <img src="${item.avatar||`https://picsum.photos/seed/${item.name||item.account}/100/100`}" class="w-8 h-8 rounded-full">
-      <span>${item.name||item.account}</span>
-    `;
-    div.onclick = () => {
-      currentChat.type = friendTab.classList.contains('border-primary') ? 'private' : 'group';
-      currentChat.id = item.id;
-      chatTitle.innerText = item.name||item.account;
-      chatAvatar.src = item.avatar||`https://picsum.photos/seed/${item.name||item.account}/100/100`;
-      chatContent.innerHTML = '';
-    };
-    list.appendChild(div);
-  });
-}
+            users.push(user);
+            localStorage.setItem('chatUsers',JSON.stringify(users));
+            loginSuccess(user);
+        }
 
-// 发送消息
-function sendMsg() {
-  const content = msgInput.value.trim();
-  if(!content || !currentChat.id) return;
-  const data = currentChat.type==='private' ? {from:currentUser.id,to:currentChat.id,content,msgType:'text'} : {groupId:currentChat.id,from:currentUser.id,content,msgType:'text'};
-  ws.send(JSON.stringify({type:currentChat.type==='private'?'privateMsg':'groupMsg',data}));
-  addMessage(data, 'self');
-  msgInput.value = '';
-}
+        function login() {
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value;
+            const err = document.getElementById('login-error');
+            const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===u&&x.password===p);
+            if(!user){err.textContent='账号密码错误';return;}
+            loginSuccess(user);
+        }
 
-// 添加消息
-function addMessage(data, type) {
-  const div = document.createElement('div');
-  div.className = `flex ${type==='self'?'justify-end':'justify-start'} mb-2`;
-  let msgHtml = '';
-  switch(data.msgType){
-    case 'text': msgHtml = `<div class="px-3 py-2 rounded-lg ${type==='self'?'bg-primary text-white':'bg-gray-200'}">${data.content}</div>`; break;
-    case 'image': msgHtml = `<img src="${data.content}" class="max-w-[200px] rounded-lg">`; break;
-    case 'file': msgHtml = `<a href="${data.content}" target="_blank" class="px-3 py-2 bg-gray-200 rounded-lg">📎 ${data.content}</a>`; break;
-    case 'voice': msgHtml = `<audio controls src="${data.content}" class="h-8"></audio>`; break;
-  }
-  div.innerHTML = msgHtml;
-  chatContent.appendChild(div);
-  chatContent.scrollTop = chatContent.scrollHeight;
-}
+        function autoLogin(u,p){
+            const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===u&&x.password===p);
+            user && loginSuccess(user);
+        }
 
-// 个人主页
-function openProfile() {
-  profileModal.classList.remove('hidden');
-  profileAvatar.src = currentUser.avatar;
-  profileSign.value = currentUser.sign;
-  renderAlbum();
-}
-function uploadAlbum() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.onchange = () => {
-    const file = input.files[0];
-    const url = URL.createObjectURL(file);
-    currentUser.album.push(url);
-    renderAlbum();
-  };
-  input.click();
-}
-function renderAlbum() {
-  albumArea.innerHTML = currentUser.album.map(url=>`<img src="${url}" class="w-12 h-12 rounded object-cover">`).join('');
-}
-function saveProfile() {
-  currentUser.sign = profileSign.value;
-  ws.send(JSON.stringify({type:'updateProfile',data:{uid:currentUser.id,avatar:currentUser.avatar,sign:currentUser.sign,album:currentUser.album}}));
-  profileModal.classList.add('hidden');
-}
+        function loginSuccess(user){
+            currentUser = user;
+            if(document.getElementById('remember-me').checked){
+                localStorage.setItem('rememberedUser',JSON.stringify({username:user.username,password:user.password}));
+            }
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('main-container').classList.remove('hidden');
+            updateUI();
+            loadContacts();
+        }
 
-// 发送文件/图片
-function sendFile(type) {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.onchange = () => {
-    const url = URL.createObjectURL(input.files[0]);
-    const data = currentChat.type==='private' ? {from:currentUser.id,to:currentChat.id,content:url,msgType:type} : {groupId:currentChat.id,from:currentUser.id,content:url,msgType:type};
-    ws.send(JSON.stringify({type:currentChat.type==='private'?'privateMsg':'groupMsg',data}));
-    addMessage(data, 'self');
-  };
-  input.click();
-}
+        // 复制自己的ID
+        function copyMyID(){
+            navigator.clipboard.writeText(currentUser.userID).then(()=>alert('ID已复制！'));
+        }
 
-// 语音/表情包
-function recordVoice() { alert('语音消息开发中'); }
-function openEmoji() { msgInput.value += emojiList[Math.floor(Math.random()*emojiList.length)]; }
+        // 搜索+添加好友（支持用户名/ID）
+        function searchAndAddFriend(){
+            const key = document.getElementById('search-key').value.trim();
+            const err = document.getElementById('add-friend-error');
+            if(!key){err.textContent='请输入内容';return;}
 
-// 加好友/建群
-function openAddFriend() {
-  const account = prompt('请输入对方账号：');
-  if(account) ws.send(JSON.stringify({type:'addFriend',data:{uid:currentUser.id,friendAccount:account}}));
-}
-function openCreateGroup() {
-  const name = prompt('请输入群聊名称：');
-  if(name) ws.send(JSON.stringify({type:'createGroup',data:{uid:currentUser.id,name}}));
-}
-</script>
+            const users = JSON.parse(localStorage.getItem('chatUsers')||'[]');
+            const target = users.find(x=>x.username===key || x.userID===key);
+
+            if(!target){err.textContent='用户不存在';return;}
+            if(target.username===currentUser.username){err.textContent='不能加自己';return;}
+            if(currentUser.friends.includes(target.username)){err.textContent='已是好友';return;}
+
+            currentUser.friends.push(target.username);
+            target.friends.push(currentUser.username);
+            saveUsers();
+            alert('添加成功！');
+            closeModal('add-friend-modal');
+            loadContacts();
+        }
+
+        function updateUI(){
+            document.getElementById('current-username').textContent=currentUser.username;
+            document.getElementById('current-userid').textContent=`ID：${currentUser.userID}（点击复制）`;
+            document.getElementById('user-avatar').src=currentUser.avatar;
+            document.getElementById('profile-username').textContent=currentUser.username;
+            document.getElementById('profile-userid').textContent=`用户ID：${currentUser.userID}（点击复制）`;
+            document.getElementById('profile-signature').textContent=currentUser.signature;
+            document.getElementById('profile-avatar').src=currentUser.avatar;
+            loadAlbum();
+        }
+
+        function loadContacts(t='friends'){
+            const list = document.getElementById('contact-list');
+            list.innerHTML='';
+            if(t==='friends'){
+                currentUser.friends.forEach(f=>{
+                    const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===f);
+                    list.innerHTML+=`
+                    <div class="contact-item" onclick="startChat('${f}')">
+                        <img src="${user?.avatar||'https://picsum.photos/id/237'}" class="contact-avatar">
+                        <div class="contact-info"><div class="contact-name">${f}</div><div>ID：${user?.userID}</div></div>
+                    </div>`;
+                });
+            }else{
+                list.innerHTML=`<div class="contact-item" onclick="startChat('系统群聊',true)"><img src="https://picsum.photos/id/100" class="contact-avatar"><div class="contact-name">系统群聊</div></div>`;
+            }
+        }
+
+        function startChat(name,isGroup=false){
+            currentChat={name,isGroup};
+            const user = JSON.parse(localStorage.getItem('chatUsers')||'[]').find(x=>x.username===name);
+            document.getElementById('chat-title').textContent=name;
+            document.getElementById('chat-avatar').src=isGroup?'https://picsum.photos/id/100':user?.avatar||'https://picsum.photos/id/237';
+            document.getElementById('block-user-btn').hidden=isGroup;
+            document.getElementById('remove-friend-btn').hidden=isGroup;
+            loadHistory();
+        }
+
+        // 以下为原有完整功能（聊天、多媒体、个人主页、拉黑、相册等）
+        function sendMessage(){const i=document.getElementById('message-input');const c=i.value.trim();if(!c||!currentChat)return;addMessage(currentUser.username,c,'message');i.value='';}
+        function sendImage(){const f=document.getElementById('image-upload').files[0];if(!f||!currentChat)return;const r=new FileReader();r.onload=e=>addMessage(currentUser.username,'图片','image',{data:e.target.result,name:f.name});r.readAsDataURL(f);}
+        function sendFile(){const f=document.getElementById('file-upload').files[0];if(!f||!currentChat)return;const r=new FileReader();r.onload=e=>addMessage(currentUser.username,`文件：${f.name}`,'file',{data:e.target.result,name:f.name,size:f.size});r.readAsDataURL(f);}
+        function startRecording(){if(isRecording){stopRecording();return;}navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{isRecording=true;mediaRecorder=new MediaRecorder(s);mediaRecorder.ondataavailable=e=>recordedChunks.push(e.data);mediaRecorder.onstop=()=>{const b=new Blob(recordedChunks,{type:'audio/wav'});const r=new FileReader();r.onload=e=>addMessage(currentUser.username,'语音','voice',{data:e.target.result});r.readAsDataURL(b);s.getTracks().forEach(t=>t.stop());};mediaRecorder.start();document.querySelector('.fa-microphone').style.color='red';});}
+        function stopRecording(){if(mediaRecorder&&isRecording){mediaRecorder.stop();isRecording=false;document.querySelector('.fa-microphone').style.color='';}}
+        function addMessage(from,content,type,file){
+            const box=document.getElementById('chat-messages');
+            const isMe=from===currentUser.username;
+            let html=`<div class="message ${isMe?'self':'other'}"><div class="message-content">`;
+            if(type==='message')html+=content;
+            else if(type==='image')html+=`<img src="${file.data}" class="message-image">`;
+            else if(type==='file')html+=`<div class="message-file"><i class="far fa-file"></i><div>${file.name}</div><button class="btn" onclick="download('${file.data}','${file.name}')">下载</button></div>`;
+            else if(type==='voice')html+=`<div class="message-voice"><i class="fas fa-volume-up" onclick="play('${file.data}')"></i>语音</div>`;
+            html+=`</div><div class="message-time">${new Date().toLocaleTimeString()}</div></div>`;
+            box.innerHTML+=html;
+            box.scrollTop=box.scrollHeight;
+        }
+        function toggleEmojiPanel(){document.getElementById('emoji-panel').classList.toggle('hidden');}
+        function insertEmoji(e){document.getElementById('message-input').value+=e;toggleEmojiPanel();}
+        function openAddFriendModal(){document.getElementById('add-friend-modal').classList.remove('hidden');document.getElementById('add-friend-error').textContent='';}
+        function closeModal(id){document.getElementById(id).classList.add('hidden');}
+        function blockUser(){if(!currentChat||currentChat.isGroup)return;confirm('拉黑？')&&(currentUser.friends=currentUser.friends.filter(x=>x!==currentChat.name),currentUser.blocked.push(currentChat.name),saveUsers(),alert('已拉黑'),startChat('选择聊天对象'));}
+        function removeFriend(){if(!currentChat||currentChat.isGroup)return;confirm('删除？')&&(currentUser.friends=currentUser.friends.filter(x=>x!==currentChat.name),saveUsers(),alert('已删除'),startChat('选择聊天对象'));}
+        function showProfilePage(){document.querySelector('.chat-area').classList.add('hidden');document.getElementById('profile-page').classList.remove('hidden');}
+        function backToChat(){document.getElementById('profile-page').classList.add('hidden');document.querySelector('.chat-area').classList.remove('hidden');}
+        function editProfile(){document.getElementById('edit-profile-modal').classList.remove('hidden');document.getElementById('edit-username').value=currentUser.username;document.getElementById('edit-signature').value=currentUser.signature;}
+        function previewAvatar(){const f=document.getElementById('avatar-upload').files[0];if(!f)return;const r=new FileReader();r.onload=e=>{document.getElementById('avatar-preview').src=e.target.result;document.getElementById('avatar-preview').style.display='block';};r.readAsDataURL(f);}
+        function saveProfile(){const u=document.getElementById('edit-username').value.trim();const s=document.getElementById('edit-signature').value.trim();const a=document.getElementById('avatar-preview').src;currentUser.username=u;currentUser.signature=s;a&&(currentUser.avatar=a);saveUsers();updateUI();alert('保存成功');closeModal('edit-profile-modal');}
+        function addAlbumImage(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=e=>{const r=new FileReader();r.onload=e=>{currentUser.album.push(e.target.result);saveUsers();loadAlbum();};r.readAsDataURL(e.target.files[0]);};i.click();}
+        function loadAlbum(){const g=document.getElementById('album-grid');const add=g.querySelector('.album-item');g.innerHTML='';currentUser.album.forEach(i=>g.innerHTML+=`<div class="album-item"><img src="${i}"></div>`);g.appendChild(add);}
+        function saveUsers(){const users=JSON.parse(localStorage.getItem('chatUsers')||'[]');const i=users.findIndex(x=>x.userID===currentUser.userID);i!==-1&&(users[i]=currentUser,localStorage.setItem('chatUsers',JSON.stringify(users)));}
+        function download(url,name){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
+        function play(url){new Audio(url).play();}
+        function loadHistory(){}
+        function showContacts(t){loadContacts(t);}
+    </script>
 </body>
 </html>
