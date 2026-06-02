@@ -1,263 +1,237 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>全能云端聊天系统</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑;}
-    body{background:#f5f7fa;}
-    .hidden{display:none !important;}
-    .auth{max-width:400px;margin:50px auto;background:white;padding:30px;border-radius:12px;box-shadow:0 2px 10px #0000001a;}
-    .auth h2{margin-bottom:20px;color:#333;text-align:center;}
-    input{width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
-    button{padding:12px;width:100%;background:#4285f4;color:white;border:none;border-radius:6px;margin:8px 0;cursor:pointer;}
-    .tab{display:flex;gap:10px;margin-bottom:15px;}
-    .tab button{flex:1;background:#eee;color:#333;}
-    .tab button.active{background:#4285f4;color:white;}
-    .chat-app{display:flex;height:100vh;max-width:1200px;margin:0 auto;background:white;}
-    .sidebar{width:300px;border-right:1px solid #ddd;padding:20px;}
-    .main{flex:1;display:flex;flex-direction:column;}
-    .chat-header{padding:15px;border-bottom:1px solid #ddd;}
-    .msg-box{flex:1;padding:20px;overflow-y:auto;}
-    .msg{max-width:70%;margin:8px 0;padding:10px;border-radius:8px;}
-    .msg.me{background:#4285f4;color:white;margin-left:auto;}
-    .msg.other{background:#eee;color:#333;}
-    .send-box{display:flex;padding:15px;gap:5px;border-top:1px solid #ddd;}
-    .send-box input{flex:1;}
-    .emoji{display:flex;gap:5px;padding:5px;flex-wrap:wrap;}
-    .emoji span{cursor:pointer;padding:5px;}
-    .user-item{padding:10px;border-bottom:1px solid #ddd;cursor:pointer;}
-    .user-item.active{background:#e8f4ff;}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>云端全能聊天系统</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑"}
+body{background:#f5f7fa}
+.hidden{display:none !important}
+.auth-wrap{width:400px;margin:50px auto;background:#fff;padding:30px;border-radius:12px;box-shadow:0 2px 12px #00000015}
+.tab-bar{display:flex;gap:8px;margin-bottom:20px}
+.tab-bar button{flex:1;padding:10px;border:0;background:#eee;border-radius:6px;cursor:pointer;font-size:15px}
+.tab-bar button.active{background:#4285f4;color:#fff}
+input{width:100%;padding:12px;margin:7px 0;border:1px solid #ddd;border-radius:6px;font-size:14px}
+.oper-btn{width:100%;padding:12px;background:#4285f4;color:#fff;border:none;border-radius:6px;margin:8px 0;font-size:15px;cursor:pointer}
+.main-box{max-width:1220px;margin:0 auto;height:100vh;display:flex;background:#fff}
+.left-bar{width:300px;border-right:1px solid #eee;padding:15px;display:flex;flex-direction:column}
+.friend-box{flex:1;overflow:auto;margin:10px 0}
+.friend-item{padding:10px;border-bottom:1px solid #f1f1f1;cursor:pointer}
+.friend-item:hover{background:#f5f9ff}
+.chat-area{flex:1;display:flex;flex-direction:column}
+.chat-top{padding:15px;border-bottom:1px solid #eee}
+.msg-container{flex:1;padding:15px;overflow-y:auto;background:#f8f9fa}
+.msg{max-width:72%;margin:8px 0;padding:9px 12px;border-radius:14px}
+.msg-self{background:#4285f4;color:#fff;margin-left:auto}
+.msg-other{background:#ffffff;border:1px solid #eee}
+.emoji-row{padding:6px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #eee}
+.emoji-row span{cursor:pointer;font-size:18px;padding:3px}
+.send-row{display:flex;padding:12px;gap:8px}
+.send-row input{flex:1;margin:0}
+</style>
 </head>
 <body>
-
-<!-- 登录注册模块 -->
-<div class="auth" id="authBox">
-  <div class="tab">
-    <button id="tabLogin" class="active" onclick="switchTab('login')">登录</button>
-    <button id="tabReg" onclick="switchTab('reg')">注册</button>
-  </div>
-
-  <!-- 登录 -->
-  <div id="loginForm">
-    <h2>账号登录</h2>
-    <input id="loginUser" placeholder="用户名">
-    <input id="loginPwd" type="password" placeholder="密码">
-    <button onclick="userLogin()">登录</button>
-  </div>
-
-  <!-- 注册（字母+数字校验） -->
-  <div id="regForm" class="hidden">
-    <h2>账号注册</h2>
-    <input id="regUser" placeholder="用户名（字母+数字 3-15位）">
-    <input id="regPwd" type="password" placeholder="密码（≥6位）">
-    <input id="regPwd2" type="password" placeholder="确认密码">
-    <button onclick="userRegister()">👉 注册并自动登录</button>
-  </div>
-</div>
-
-<!-- 主聊天界面 -->
-<div class="chat-app hidden" id="chatApp">
-  <div class="sidebar">
-    <h3>好友列表</h3>
-    <div id="friendList"></div>
-    <button onclick="addFriend()">添加好友</button>
-    <button onclick="createGroup()">创建群聊</button>
-  </div>
-  <div class="main">
-    <div class="chat-header" id="chatTitle">选择聊天对象</div>
-    <div class="msg-box" id="msgBox"></div>
-    <div class="emoji" id="emojiPanel"></div>
-    <div class="send-box">
-      <input type="file" id="fileInput" multiple hidden>
-      <button onclick="selectFile()">文件/图片</button>
-      <button onclick="startVoice()">语音</button>
-      <input id="msgInput" placeholder="输入消息">
-      <button onclick="sendMsg()">发送</button>
+<div class="auth-wrap" id="authDom">
+    <div class="tab-bar">
+        <button id="loginTab" class="active" onclick="changeTab('login')">登录</button>
+        <button id="regTab" onclick="changeTab('reg')">注册</button>
     </div>
-  </div>
+    <div id="loginDom">
+        <input id="lUser" placeholder="用户名">
+        <input id="lPwd" type="password" placeholder="密码">
+        <button class="oper-btn" onclick="loginAct()">登录</button>
+    </div>
+    <div id="regDom" class="hidden">
+        <input id="rUser" placeholder="用户名：字母+数字 3~15位">
+        <input id="rPwd" type="password" placeholder="密码≥6位">
+        <input id="rPwd2" type="password" placeholder="确认密码">
+        <!-- 固定onclick，必定触发 -->
+        <button class="oper-btn" onclick="registerAct()">注册并自动登录</button>
+    </div>
+</div>
+<div class="main-box hidden" id="mainDom">
+    <div class="left-bar">
+        <h3>好友列表</h3>
+        <div class="friend-box" id="friendWrap"></div>
+        <button class="oper-btn" onclick="addFriendAct()">添加好友</button>
+        <button class="oper-btn" style="background:#34a853" onclick="createGroup()">新建群聊</button>
+    </div>
+    <div class="chat-area">
+        <div class="chat-top" id="chatTitle">请选择好友发起聊天</div>
+        <div class="msg-container" id="msgWrap"></div>
+        <div class="emoji-row" id="emojiWrap"></div>
+        <div class="send-row">
+            <input type="file" id="fileDom" hidden multiple>
+            <button class="oper-btn" style="width:auto;padding:8px" onclick="document.getElementById('fileDom').click()">文件</button>
+            <button class="oper-btn" style="width:auto;padding:8px" onclick="alert('语音')">语音</button>
+            <input id="inputMsg" placeholder="输入消息内容">
+            <button class="oper-btn" style="width:auto;padding:8px" onclick="sendMsgAct()">发送</button>
+        </div>
+    </div>
 </div>
 
 <script>
-// ===================== 云端配置（已填好，无需修改） =====================
 const SUPABASE_URL = "https://clcdvikgogwpxvhtwdkc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_2FNPLa8GRWKoPco7ebpGqw_4D4L3uIt";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 全局变量
-let currentUser = null;
-let chatTarget = null;
-let realtimeChannel = null;
+let nowUser = null;
+let targetChat = null;
+let realSub = null;
+const emojiArr = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘'];
 
-// ===================== 初始化：刷新自动登录 =====================
-window.onload = function(){
-  autoLogin();
-  loadEmoji();
-}
-
-// 切换登录/注册
-function switchTab(type){
-  document.getElementById('loginForm').classList.toggle('hidden', type!=='login');
-  document.getElementById('regForm').classList.toggle('hidden', type!=='reg');
-  document.getElementById('tabLogin').classList.toggle('active', type==='login');
-  document.getElementById('tabReg').classList.toggle('active', type==='reg');
-}
-
-// ===================== 注册：字母+数字校验 + 注册即登录 =====================
-async function userRegister(){
-  alert("注册按钮点击成功！");
-  let user = document.getElementById('regUser').value.trim();
-  let pwd = document.getElementById('regPwd').value;
-  let pwd2 = document.getElementById('regPwd2').value;
-
-  // 字母+数字 3-15位校验
-  if(!/^[a-zA-Z0-9]{3,15}$/.test(user)){
-    alert("用户名必须是字母+数字，3-15位！");
-    return;
-  }
-  if(pwd.length <6 || pwd!==pwd2){
-    alert("密码≥6位，两次密码一致！");
-    return;
-  }
-
-  // 写入云端数据库
-  const { data:hasUser } = await supabase.from('users').select('username').eq('username', user);
-  if(hasUser.length){
-    alert("用户名已存在！");
-    return;
-  }
-
-  const newUser = {
-    username:user, password:pwd, userid:Math.random().toString(36).slice(2),
-    friend_list:[], block_list:[], group_list:[]
-  };
-
-  await supabase.from('users').insert([newUser]);
-  localStorage.setItem('chat_user', JSON.stringify(newUser));
-  loginSuccess(newUser);
-}
-
-// ===================== 登录 + 记住密码 =====================
-async function userLogin(){
-  let user = document.getElementById('loginUser').value;
-  let pwd = document.getElementById('loginPwd').value;
-  const { data } = await supabase.from('users').select('*').eq('username',user).eq('password',pwd).single();
-  
-  if(!data){
-    alert("账号密码错误！");
-    return;
-  }
-  localStorage.setItem('chat_user', JSON.stringify(data));
-  loginSuccess(data);
-}
-
-// 自动登录（刷新保持登录）
-function autoLogin(){
-  let cache = localStorage.getItem('chat_user');
-  if(cache){
-    loginSuccess(JSON.parse(cache));
-  }
-}
-
-// 登录成功
-function loginSuccess(user){
-  currentUser = user;
-  document.getElementById('authBox').classList.add('hidden');
-  document.getElementById('chatApp').classList.remove('hidden');
-  initRealtimeChat();
-  loadFriends();
-}
-
-// ===================== WebSocket 实时聊天 =====================
-function initRealtimeChat(){
-  realtimeChannel = supabase.channel('chat_channel')
-  .on('postgres_changes', { event:'INSERT', schema:'public', table:'chat_msg' }, payload => {
-    if(payload.new.to_user == currentUser.username || payload.new.from_user == currentUser.username){
-      loadMessages();
+//切换标签
+function changeTab(type){
+    if(type=='login'){
+        document.getElementById('loginTab').classList.add('active');
+        document.getElementById('regTab').classList.remove('active');
+        document.getElementById('loginDom').classList.remove('hidden');
+        document.getElementById('regDom').classList.add('hidden');
+    }else{
+        document.getElementById('regTab').classList.add('active');
+        document.getElementById('loginTab').classList.remove('active');
+        document.getElementById('regDom').classList.remove('hidden');
+        document.getElementById('loginDom').classList.add('hidden');
     }
-  })
-  .subscribe();
 }
 
-// ===================== 表情包 =====================
-function loadEmoji(){
-  let emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘'];
-  let panel = document.getElementById('emojiPanel');
-  emojis.forEach(e => {
-    let span = document.createElement('span');
-    span.innerText = e;
-    span.onclick = () => document.getElementById('msgInput').value += e;
-    panel.appendChild(span);
-  });
+//【注册核心】点击第一时间弹窗
+async function registerAct(){
+    alert("✅ 注册按钮已点击");
+    let uname = document.getElementById('rUser').value.trim();
+    let p1 = document.getElementById('rPwd').value;
+    let p2 = document.getElementById('rPwd2').value;
+    let reg = /^[a-zA-Z0-9]{3,15}$/;
+    if(!reg.test(uname)){
+        alert('用户名仅限字母+数字，3~15位');
+        return;
+    }
+    if(p1.length<6 || p1!==p2){
+        alert('密码≥6位，两次一致');
+        return;
+    }
+    const {data:exist} = await supabase.from('users').select('username').eq('username',uname);
+    if(exist.length>0){
+        alert('用户名已存在');
+        return;
+    }
+    let userInfo = {
+        username:uname,
+        password:p1,
+        userid:Math.random().toString(36).slice(3,10).toUpperCase(),
+        friend_list:[],
+        block_list:[]
+    }
+    await supabase.from('users').insert([userInfo]);
+    localStorage.setItem('chatLocalUser',JSON.stringify(userInfo));
+    loginSuccess(userInfo);
 }
 
-// ===================== 文件/图片选择 =====================
-function selectFile(){
-  document.getElementById('fileInput').click();
+async function loginAct(){
+    let un = document.getElementById('lUser').value.trim();
+    let pd = document.getElementById('lPwd').value;
+    const {data} = await supabase.from('users').select('*').eq('username',un).eq('password',pd).single();
+    if(!data){
+        alert('账号错误');
+        return;
+    }
+    localStorage.setItem('chatLocalUser',JSON.stringify(data));
+    loginSuccess(data);
 }
 
-// ===================== 语音录制 =====================
-function startVoice(){
-  alert("语音录制功能已触发（浏览器API支持）");
+async function autoLoginAct(){
+    let cache = localStorage.getItem('chatLocalUser');
+    if(!cache) return;
+    let u = JSON.parse(cache);
+    const {data} = await supabase.from('users').select('*').eq('username',u.username).eq('password',u.password).single();
+    if(data) loginSuccess(data);
 }
 
-// ===================== 发送消息 =====================
-async function sendMsg(){
-  let content = document.getElementById('msgInput').value;
-  if(!content || !chatTarget) return;
-
-  await supabase.from('chat_msg').insert([{
-    from_user:currentUser.username,
-    to_user:chatTarget,
-    content:content,
-    create_at:new Date().toISOString()
-  }]);
-  document.getElementById('msgInput').value = '';
+function loginSuccess(user){
+    nowUser = user;
+    document.getElementById('authDom').classList.add('hidden');
+    document.getElementById('mainDom').classList.remove('hidden');
+    initRealtime();
+    loadFriendList();
 }
 
-// ===================== 加载消息 =====================
-async function loadMessages(){
-  let box = document.getElementById('msgBox');
-  box.innerHTML = '';
-  const { data } = await supabase.from('chat_msg').select('*')
-    .or(`from_user.eq.${currentUser.username},to_user.eq.${currentUser.username}`)
-    .or(`from_user.eq.${chatTarget},to_user.eq.${chatTarget}`)
+function initRealtime(){
+    realSub = supabase.channel('chatSub')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_msg'},()=>{
+        if(targetChat) loadChatMsg();
+    }).subscribe()
+}
+
+async function loadFriendList(){
+    let wrap = document.getElementById('friendWrap');
+    wrap.innerHTML = '';
+    let arr = nowUser.friend_list || [];
+    for(let name of arr){
+        const {data} = await supabase.from('users').select('username').eq('username',name).single();
+        let div = document.createElement('div');
+        div.className = 'friend-item';
+        div.innerText = data.username;
+        div.onclick = ()=>{
+            targetChat = data.username;
+            document.getElementById('chatTitle').innerText='和 '+targetChat+' 聊天';
+            loadChatMsg();
+        }
+        wrap.appendChild(div);
+    }
+}
+
+async function addFriendAct(){
+    let name = prompt('输入用户名');
+    if(!name) return;
+    const {data} = await supabase.from('users').select('username').eq('username',name);
+    if(data.length===0){
+        alert('无此用户');
+        return;
+    }
+    await supabase.from('friend_apply').insert([{from_name:nowUser.username,to_name:name}]);
+    alert('申请已发送');
+}
+
+function createGroup(){alert('新建群聊')}
+
+async function sendMsgAct(){
+    let cont = document.getElementById('inputMsg').value.trim();
+    if(!cont || !targetChat){alert('先选好友');return;}
+    await supabase.from('chat_msg').insert([{
+        from_user:nowUser.username,to_user:targetChat,content:cont,create_at:new Date()
+    }])
+    document.getElementById('inputMsg').value='';
+    loadChatMsg();
+}
+
+async function loadChatMsg(){
+    let wrap = document.getElementById('msgWrap');
+    wrap.innerHTML = '';
+    const {data} = await supabase.from('chat_msg')
+    .or(`from_user.eq.${nowUser.username},to_user.eq.${nowUser.username}`)
+    .or(`from_user.eq.${targetChat},to_user.eq.${targetChat}`)
     .order('create_at');
-
-  data.forEach(m => {
-    let div = document.createElement('div');
-    div.className = `msg ${m.from_user == currentUser.username ? 'me' : 'other'}`;
-    div.innerText = m.content;
-    box.appendChild(div);
-  });
-  box.scrollTop = box.scrollHeight;
+    data.forEach(item=>{
+        let div = document.createElement('div');
+        div.className = item.from_user===nowUser.username ? 'msg msg-self' : 'msg msg-other';
+        div.innerText = item.content;
+        wrap.appendChild(div);
+    })
+    wrap.scrollTop = wrap.scrollHeight;
 }
 
-// ===================== 好友系统 =====================
-async function loadFriends(){
-  let list = document.getElementById('friendList');
-  list.innerHTML = '';
-  currentUser.friend_list.forEach(f => {
-    let div = document.createElement('div');
-    div.className = 'user-item';
-    div.innerText = f;
-    div.onclick = () => { chatTarget = f; loadMessages(); };
-    list.appendChild(div);
-  });
-}
-
-async function addFriend(){
-  let name = prompt("输入好友用户名");
-  if(!name) return;
-  await supabase.from('friend_apply').insert([{from_name:currentUser.username, to_name:name}]);
-  alert("好友申请已发送！");
-}
-
-function createGroup(){
-  alert("群聊创建功能已触发！");
+//初始化表情+自动登录
+window.onload = function(){
+    let eWrap = document.getElementById('emojiWrap');
+    emojiArr.forEach(item=>{
+        let sp = document.createElement('span');
+        sp.innerText = item;
+        sp.onclick = ()=>document.getElementById('inputMsg').value += item;
+        eWrap.appendChild(sp);
+    })
+    autoLoginAct();
 }
 </script>
 </body>
