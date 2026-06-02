@@ -27,6 +27,11 @@
     <div id="loginBox" class="space-y-3">
       <input placeholder="账号(字母+数字)" id="loginAccount" class="w-full p-3 border rounded-lg">
       <input placeholder="密码" type="password" id="loginPwd" class="w-full p-3 border rounded-lg">
+      <!-- 记住密码复选框 -->
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="rememberPwd" class="w-4 h-4">
+        <label class="text-sm text-gray-600">记住账号密码</label>
+      </div>
       <button onclick="login()" class="w-full bg-primary text-white p-3 rounded-lg">登录</button>
     </div>
     <!-- 注册 -->
@@ -41,9 +46,7 @@
 
 <!-- 主界面 -->
 <div id="main" class="hidden h-screen flex max-w-7xl mx-auto bg-white shadow-xl">
-  <!-- 左侧栏 -->
   <div class="w-72 border-r flex flex-col">
-    <!-- 用户信息 -->
     <div class="p-4 border-b flex items-center gap-3 cursor-pointer" onclick="openProfile()">
       <img id="myAvatar" class="w-10 h-10 rounded-full">
       <div class="flex-1">
@@ -51,7 +54,6 @@
         <p class="text-xs text-green-500">在线</p>
       </div>
     </div>
-    <!-- 功能按钮 -->
     <div class="p-3 flex gap-2">
       <button onclick="openAddFriend()" class="flex-1 p-2 bg-primary/10 text-primary rounded-lg">
         <i class="fa fa-user-plus mr-1"></i>加好友
@@ -60,16 +62,13 @@
         <i class="fa fa-users mr-1"></i>建群聊
       </button>
     </div>
-    <!-- 好友/群聊切换 -->
     <div class="flex border-b">
       <button id="friendTab" class="flex-1 py-2 border-b-2 border-primary font-semibold">好友</button>
       <button id="groupTab" class="flex-1 py-2 text-gray-500">群聊</button>
     </div>
-    <!-- 列表 -->
     <div id="list" class="flex-1 overflow-y-auto p-2"></div>
   </div>
 
-  <!-- 聊天窗口 -->
   <div class="flex-1 flex flex-col">
     <div class="p-4 border-b flex items-center gap-3">
       <img id="chatAvatar" class="w-10 h-10 rounded-full">
@@ -77,9 +76,7 @@
         <h3 id="chatTitle" class="font-semibold">选择聊天对象</h3>
       </div>
     </div>
-    <!-- 消息区域 -->
     <div id="chatContent" class="flex-1 bg-gray-50 p-4 overflow-y-auto"></div>
-    <!-- 工具栏 -->
     <div class="p-3 border-t flex items-center gap-2">
       <button onclick="openEmoji()" class="text-xl text-gray-500"><i class="fa fa-smile-o"></i></button>
       <button onclick="sendFile('image')" class="text-xl text-gray-500"><i class="fa fa-picture-o"></i></button>
@@ -108,13 +105,24 @@
 </div>
 
 <script>
-// WebSocket连接
 let ws;
 let currentUser = null;
 let currentChat = { type: 'private', id: null };
 const emojiList = ['😀','😁','😂','🤣','😊','😎','😍','🥳','😜','😝'];
 
-// 初始化连接
+// 页面加载：读取本地记住的账号密码
+window.onload = function() {
+  const localData = localStorage.getItem('chatUser');
+  if (localData) {
+    const { account, pwd } = JSON.parse(localData);
+    loginAccount.value = account;
+    loginPwd.value = pwd;
+    rememberPwd.checked = true;
+  }
+  connectWS();
+}
+
+// 连接WebSocket
 function connectWS() {
   ws = new WebSocket('ws://localhost:3000');
   ws.onmessage = (e) => {
@@ -124,8 +132,18 @@ function connectWS() {
 }
 
 // 切换登录注册
-loginTab.onclick = () => { loginBox.classList.remove('hidden'); regBox.classList.add('hidden'); loginTab.classList.add('border-primary'); regTab.classList.remove('border-primary'); }
-regTab.onclick = () => { regBox.classList.remove('hidden'); loginBox.classList.add('hidden'); regTab.classList.add('border-primary'); loginTab.classList.remove('border-primary'); }
+loginTab.onclick = () => { 
+  loginBox.classList.remove('hidden'); 
+  regBox.classList.add('hidden'); 
+  loginTab.classList.add('border-primary'); 
+  regTab.classList.remove('border-primary'); 
+}
+regTab.onclick = () => { 
+  regBox.classList.remove('hidden'); 
+  loginBox.classList.add('hidden'); 
+  regTab.classList.add('border-primary'); 
+  loginTab.classList.remove('border-primary'); 
+}
 
 // 注册
 function register() {
@@ -139,15 +157,27 @@ function login() {
   ws.send(JSON.stringify({ type: 'login', data: { account, pwd } }));
 }
 
-// 处理服务端消息
+// 处理消息
 function handleWsMessage(res) {
   switch(res.type) {
+    // 注册成功 → 直接自动登录
     case 'registerRes':
       tip.innerText = res.data.msg;
+      if (res.data.code === 1) {
+        currentUser = res.data.user;
+        // 保存账号密码（如果需要）
+        saveRememberPwd(currentUser.account, currentUser.pwd);
+        // 直接进入系统
+        authModal.classList.add('hidden');
+        main.classList.remove('hidden');
+        renderUserInfo();
+      }
       break;
+    // 登录成功
     case 'loginRes':
       if(res.data.code===1){
         currentUser = res.data.user;
+        saveRememberPwd(currentUser.account, currentUser.pwd);
         authModal.classList.add('hidden');
         main.classList.remove('hidden');
         renderUserInfo();
@@ -165,13 +195,22 @@ function handleWsMessage(res) {
   }
 }
 
+// 保存/清除 记住密码
+function saveRememberPwd(account, pwd) {
+  if (rememberPwd.checked) {
+    localStorage.setItem('chatUser', JSON.stringify({ account, pwd }));
+  } else {
+    localStorage.removeItem('chatUser');
+  }
+}
+
 // 渲染用户信息
 function renderUserInfo() {
   myAvatar.src = currentUser.avatar;
   myName.innerText = currentUser.account;
 }
 
-// 渲染好友/群聊列表
+// 渲染列表
 function renderList(friends, groups) {
   list.innerHTML = '';
   let showList = friendTab.classList.contains('border-primary') ? friends : groups;
@@ -203,7 +242,7 @@ function sendMsg() {
   msgInput.value = '';
 }
 
-// 添加消息到界面
+// 添加消息
 function addMessage(data, type) {
   const div = document.createElement('div');
   div.className = `flex ${type==='self'?'justify-end':'justify-start'} mb-2`;
@@ -219,15 +258,13 @@ function addMessage(data, type) {
   chatContent.scrollTop = chatContent.scrollHeight;
 }
 
-// 打开个人主页
+// 个人主页
 function openProfile() {
   profileModal.classList.remove('hidden');
   profileAvatar.src = currentUser.avatar;
   profileSign.value = currentUser.sign;
   renderAlbum();
 }
-
-// 上传相册
 function uploadAlbum() {
   const input = document.createElement('input');
   input.type = 'file';
@@ -239,13 +276,9 @@ function uploadAlbum() {
   };
   input.click();
 }
-
-// 渲染相册
 function renderAlbum() {
   albumArea.innerHTML = currentUser.album.map(url=>`<img src="${url}" class="w-12 h-12 rounded object-cover">`).join('');
 }
-
-// 保存个人信息
 function saveProfile() {
   currentUser.sign = profileSign.value;
   ws.send(JSON.stringify({type:'updateProfile',data:{uid:currentUser.id,avatar:currentUser.avatar,sign:currentUser.sign,album:currentUser.album}}));
@@ -265,30 +298,19 @@ function sendFile(type) {
   input.click();
 }
 
-// 录音
-function recordVoice() {
-  alert('语音消息已触发（实际项目可集成Recorder库）');
-}
+// 语音/表情包
+function recordVoice() { alert('语音消息开发中'); }
+function openEmoji() { msgInput.value += emojiList[Math.floor(Math.random()*emojiList.length)]; }
 
-// 表情包
-function openEmoji() {
-  msgInput.value += emojiList[Math.floor(Math.random()*emojiList.length)];
-}
-
-// 加好友
+// 加好友/建群
 function openAddFriend() {
   const account = prompt('请输入对方账号：');
   if(account) ws.send(JSON.stringify({type:'addFriend',data:{uid:currentUser.id,friendAccount:account}}));
 }
-
-// 创建群聊
 function openCreateGroup() {
   const name = prompt('请输入群聊名称：');
   if(name) ws.send(JSON.stringify({type:'createGroup',data:{uid:currentUser.id,name}}));
 }
-
-// 启动
-connectWS();
 </script>
 </body>
 </html>
