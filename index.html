@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>聊天系统-好友申请+已读+撤回</title>
+<title>云端互通聊天系统-Supabase版</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑"}
 body{background:#f5f5f5}
@@ -51,7 +52,6 @@ body{background:#f5f5f5}
         <div id="tabLogin" class="active" onclick="switchTab('login')">登录</div>
         <div id="tabReg" onclick="switchTab('reg')">注册</div>
     </div>
-    <!--登录表单-->
     <div id="loginBox">
         <div class="form-item">
             <input id="loginUser" placeholder="用户名">
@@ -65,7 +65,6 @@ body{background:#f5f5f5}
         <div class="err" id="loginErr"></div>
         <button class="btn btn-green" onclick="userLogin()">登录</button>
     </div>
-    <!--注册表单-->
     <div id="regBox" class="hidden">
         <div class="form-item">
             <input id="regUser" placeholder="用户名(字母+数字 3~15位)">
@@ -135,11 +134,14 @@ body{background:#f5f5f5}
 </div>
 
 <script>
+//=====填入你自己的Supabase参数=====
+const SUPABASE_URL = "https://clcdvikgogwpxvhtwdkc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_2FNPLa8GRWKoPco7ebpGqw_4D4L3uIt";
+const { createClient } = supabase;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let currentUser = null;
 let nowChatUser = null;
-let maxMsgId = 1;
-const USER_KEY = "chatUserList";
-const REM_KEY = "chatRemember";
 
 //生成8位大写ID
 function createUID(){
@@ -161,66 +163,49 @@ function switchTab(type){
     }
 }
 
-//注册
-function userRegister(){
+//注册（写入云端users表）
+async function userRegister(){
     const name = document.getElementById('regUser').value.trim();
     const pwd = document.getElementById('regPwd').value;
     const pwd2 = document.getElementById('regPwd2').value;
     const errDom = document.getElementById('regErr');
-    //账号正则：字母+数字3-15位
     const reg = /^[a-zA-Z0-9]{3,15}$/;
-    if(!reg.test(name)){
-        errDom.innerText = "用户名仅允许字母+数字，长度3~15";
-        return;
-    }
-    if(pwd.length<6){
-        errDom.innerText = "密码最少6位";
-        return;
-    }
-    if(pwd!==pwd2){
-        errDom.innerText = "两次密码不一致";
-        return;
-    }
-    //读取用户列表
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY)||'[]');
-    if(userArr.find(item=>item.username===name)){
-        errDom.innerText = "用户名已被注册";
-        return;
-    }
-    //创建新用户
+    if(!reg.test(name)){errDom.innerText = "用户名仅允许字母+数字，长度3~15";return;}
+    if(pwd.length<6){errDom.innerText = "密码最少6位";return;}
+    if(pwd!==pwd2){errDom.innerText = "两次密码不一致";return;}
+
+    //查重用户名
+    const {data:userExist} = await supabase.from('users').select('username').eq('username',name);
+    if(userExist.length>0){errDom.innerText="用户名已被注册";return;}
+
+    const newUid = createUID();
     const newUser = {
         username:name,
         password:pwd,
-        userID:createUID(),
+        userid:newUid,
         avatar:"https://picsum.photos/id/"+Math.floor(Math.random()*99),
         signature:"暂无签名",
-        friend:[],
-        applyList:[],
-        msgRecord:{}
-    };
-    userArr.push(newUser);
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+        friend_list:[],
+        block_list:[]
+    }
+    await supabase.from('users').insert([newUser]);
     loginSuccess(newUser);
 }
 
-//登录
-function userLogin(){
+//登录（读取云端）
+async function userLogin(){
     const name = document.getElementById('loginUser').value.trim();
     const pwd = document.getElementById('loginPwd').value;
     const errDom = document.getElementById('loginErr');
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY)||'[]');
-    const findUser = userArr.find(item=>item.username===name&&item.password===pwd);
-    if(!findUser){
-        errDom.innerText = "用户名或密码错误";
-        return;
-    }
-    //记住密码
+    const {data:userData} = await supabase.from('users').select('*').eq('username',name).eq('password',pwd);
+    if(userData.length===0){errDom.innerText="账号密码错误";return;}
+    const user = userData[0];
     if(document.getElementById('remPwd').checked){
-        localStorage.setItem(REM_KEY,JSON.stringify({user:name,pwd:pwd}));
+        localStorage.setItem("chatRemember",JSON.stringify({user:name,pwd:pwd}));
     }else{
-        localStorage.removeItem(REM_KEY);
+        localStorage.removeItem("chatRemember");
     }
-    loginSuccess(findUser);
+    loginSuccess(user);
 }
 
 //登录成功渲染页面
@@ -229,71 +214,67 @@ function loginSuccess(user){
     document.getElementById('authBox').classList.add('hidden');
     document.getElementById('mainBox').classList.remove('hidden');
     document.getElementById('myName').innerText = user.username;
-    document.getElementById('myID').innerText = "ID："+user.userID+"（点击复制）";
+    document.getElementById('myID').innerText = "ID："+user.userid+"（点击复制）";
     document.getElementById('myAvt').src = user.avatar;
     loadFriend();
     refreshApplyBadge();
 }
 
-//页面初始化，自动登录
-window.onload = function(){
-    let rem = localStorage.getItem(REM_KEY);
+//页面初始化自动登录
+window.onload = async function(){
+    let rem = localStorage.getItem("chatRemember");
     if(rem){
         const info = JSON.parse(rem);
-        let arr = JSON.parse(localStorage.getItem(USER_KEY)||'[]');
-        const u = arr.find(x=>x.username===info.user&&x.password===info.pwd);
-        if(u) loginSuccess(u);
+        const {data:uData}=await supabase.from('users').select('*').eq('username',info.user).eq('password',info.pwd);
+        if(uData.length>0) loginSuccess(uData[0]);
     }
 }
 
 //复制自身ID
 function copySelfID(){
-    navigator.clipboard.writeText(currentUser.userID).then(()=>alert("ID复制成功！"));
+    navigator.clipboard.writeText(currentUser.userid).then(()=>alert("ID复制成功！"));
 }
 
 //加载好友列表
-function loadFriend(){
+async function loadFriend(){
     const wrap = document.getElementById('friendList');
     wrap.innerHTML = "";
-    currentUser.friend.forEach(fName=>{
-        let allUser = JSON.parse(localStorage.getItem(USER_KEY));
-        const fUser = allUser.find(x=>x.username===fName);
+    const friendArr = currentUser.friend_list||[];
+    for(let fname of friendArr){
+        const {data:fData}=await supabase.from('users').select('username,userid,avatar').eq('username',fname);
+        const fUser = fData[0];
         const div = document.createElement('div');
         div.className = "contact-item";
-        div.innerHTML = `<img class="avatar" src="${fUser.avatar}"><div>${fName}<br><span style="font-size:11px;color:#666">ID:${fUser.userID}</span></div>`;
-        div.onclick = ()=>openChat(fName);
+        div.innerHTML = `<img class="avatar" src="${fUser.avatar}"><div>${fUser.username}<br><span style="font-size:11px;color:#666">ID:${fUser.userid}</span></div>`;
+        div.onclick = ()=>openChat(fname);
         wrap.appendChild(div);
-    })
+    }
 }
 
-//打开聊天
-function openChat(fName){
+//打开聊天，加载云端消息
+async function openChat(fName){
     nowChatUser = fName;
     document.getElementById('chatTitle').innerText = "正在和"+fName+"聊天";
-    loadChatRecord();
-}
-
-//加载聊天记录
-function loadChatRecord(){
     const wrap = document.getElementById('msgWrap');
     wrap.innerHTML = "";
-    if(!currentUser.msgRecord[nowChatUser]) return;
-    currentUser.msgRecord[nowChatUser].forEach(item=>renderMsg(item));
+    //查询双向聊天记录
+    const {data:msgList}=await supabase.from('chat_msg').select('*').or(`from_user.eq.${currentUser.username},to_user.eq.${currentUser.username}`).or(`from_user.eq.${fName},to_user.eq.${fName}`).order('create_at');
+    msgList.forEach(item=>renderMsg(item));
     wrap.scrollTop = wrap.scrollHeight;
-    markMsgRead();
+    markMsgRead(fName);
 }
 
 //渲染单条消息
 function renderMsg(msg){
     const wrap = document.getElementById('msgWrap');
     const div = document.createElement('div');
-    div.className = "msg-item "+(msg.from===currentUser.username?"msg-self":"");
-    if(msg.recall){
+    div.className = "msg-item "+(msg.from_user===currentUser.username?"msg-self":"");
+    if(msg.is_recall){
         div.innerHTML = `<div class="recall-text">消息已撤回</div>`;
     }else{
         let html = `<div class="msg-content">${msg.content}</div>`;
-        if(msg.from===currentUser.username){
-            html += `<span class="read-tag">${msg.read?"已读":"未读"}</span>`;
+        if(msg.from_user===currentUser.username){
+            html += `<span class="read-tag">${msg.is_read?"已读":"未读"}</span>`;
             html += `<div class="recall-btn" onclick="recallMsg(${msg.id})">撤回</div>`;
         }
         div.innerHTML = html;
@@ -301,57 +282,29 @@ function renderMsg(msg){
     wrap.appendChild(div);
 }
 
-//发送文字消息
-function sendTextMsg(){
+//发送消息存入云端
+async function sendTextMsg(){
     const input = document.getElementById('sendInput');
     const val = input.value.trim();
     if(!val||!nowChatUser) return;
-    const msgObj = {
-        id:maxMsgId++,
-        from:currentUser.username,
-        to:nowChatUser,
+    const saveMsg = {
+        from_user:currentUser.username,
+        to_user:nowChatUser,
         content:val,
-        read:false,
-        recall:false
+        is_read:false,
+        is_recall:false
     }
-    //存入双方记录
-    saveMsgToUser(msgObj);
-    renderMsg(msgObj);
+    await supabase.from('chat_msg').insert([saveMsg]);
+    const {data:newMsg}=await supabase.from('chat_msg').select('*').order('id',{asc:false}).limit(1);
+    renderMsg(newMsg[0]);
     input.value = "";
     document.getElementById('msgWrap').scrollTop = document.getElementById('msgWrap').scrollHeight;
 }
 
-//保存消息到用户数据
-function saveMsgToUser(msg){
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    //我方
-    const me = userArr.find(x=>x.username===currentUser.username);
-    if(!me.msgRecord[msg.to]) me.msgRecord[msg.to] = [];
-    me.msgRecord[msg.to].push(msg);
-    //对方
-    const target = userArr.find(x=>x.username===msg.to);
-    if(!target.msgRecord[msg.from]) target.msgRecord[msg.from] = [];
-    target.msgRecord[msg.from].push(msg);
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
-}
-
-//撤回消息
-function recallMsg(mid){
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const me = userArr.find(x=>x.username===currentUser.username);
-    //修改我方
-    me.msgRecord[nowChatUser] = me.msgRecord[nowChatUser].map(item=>{
-        if(item.id===mid) item.recall = true;
-        return item;
-    })
-    //修改对方
-    const tar = userArr.find(x=>x.username===nowChatUser);
-    tar.msgRecord[currentUser.username] = tar.msgRecord[currentUser.username].map(item=>{
-        if(item.id===mid) item.recall = true;
-        return item;
-    })
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
-    loadChatRecord();
+//撤回消息（云端修改标记）
+async function recallMsg(mid){
+    await supabase.from('chat_msg').update({is_recall:true}).eq('id',mid);
+    openChat(nowChatUser);
 }
 
 //打开加好友弹窗
@@ -361,115 +314,93 @@ function openAddFriendBox(){
     document.getElementById('searchKey').value = "";
     document.getElementById('addErr').innerText = "";
 }
-
-//打开申请弹窗
 function openApplyBox(){
     closeAllModal();
     document.getElementById('applyModal').classList.remove('hidden');
     renderApplyList();
 }
-
-//关闭所有弹窗
 function closeAllModal(){
     document.getElementById('addFriendModal').classList.add('hidden');
     document.getElementById('applyModal').classList.add('hidden');
 }
 
-//发送好友申请
-function sendFriendApply(){
+//发送好友申请存入申请表
+async function sendFriendApply(){
     const key = document.getElementById('searchKey').value.trim();
     const errDom = document.getElementById('addErr');
     if(!key){errDom.innerText="请输入ID或用户名";return;}
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const target = userArr.find(x=>x.username===key||x.userID===key);
-    if(!target){errDom.innerText="未找到该用户";return;}
-    if(target.username===currentUser.username){errDom.innerText="不能添加自己";return;}
-    if(target.applyList.find(x=>x.fromName===currentUser.username)){errDom.innerText="已经发送过申请";return;}
-    //写入对方申请列表
-    target.applyList.push({
-        fromName:currentUser.username,
-        fromID:currentUser.userID,
-        time:new Date().toLocaleString()
-    })
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    const {data:targetUser}=await supabase.from('users').select('username,userid').or(`username.eq.${key},userid.eq.${key}`);
+    if(targetUser.length===0){errDom.innerText="未找到该用户";return;}
+    const tar = targetUser[0];
+    if(tar.username===currentUser.username){errDom.innerText="不能添加自己";return;}
+    //查重申请
+    const {data:applyExist}=await supabase.from('friend_apply').select('*').eq('from_name',currentUser.username).eq('to_name',tar.username);
+    if(applyExist.length>0){errDom.innerText="已经发送过申请";return;}
+    await supabase.from('friend_apply').insert([{from_name:currentUser.username,from_uid:currentUser.userid,to_name:tar.username}]);
     alert("好友申请发送成功！等待对方同意");
     closeAllModal();
 }
 
 //渲染收到的申请
-function renderApplyList(){
+async function renderApplyList(){
     const wrap = document.getElementById('applyList');
     wrap.innerHTML = "";
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const me = userArr.find(x=>x.username===currentUser.username);
-    if(me.applyList.length===0){
-        wrap.innerText = "暂无好友申请";
-        return;
-    }
-    me.applyList.forEach(item=>{
+    const {data:applyList}=await supabase.from('friend_apply').select('*').eq('to_name',currentUser.username);
+    if(applyList.length===0){wrap.innerText="暂无好友申请";return;}
+    applyList.forEach(item=>{
         const div = document.createElement('div');
         div.style.padding = "8px 0";
         div.style.borderBottom = "1px solid #eee";
-        div.innerHTML = `【${item.fromName}】发起好友申请 ${item.time}
+        div.innerHTML = `【${item.from_name}】发起好友申请
         <div style="margin-top:6px;gap:8px;display:flex">
-            <button class="btn btn-green" onclick="agreeApply('${item.fromName}')">同意</button>
-            <button class="btn btn-red" onclick="refuseApply('${item.fromName}')">拒绝</button>
+            <button class="btn btn-green" onclick="agreeApply('${item.from_name}',${item.id})">同意</button>
+            <button class="btn btn-red" onclick="refuseApply(${item.id})">拒绝</button>
         </div>`;
         wrap.appendChild(div);
     })
 }
 
-//同意好友
-function agreeApply(fromName){
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const me = userArr.find(x=>x.username===currentUser.username);
-    const fromUser = userArr.find(x=>x.username===fromName);
-    //互相加好友
-    if(!me.friend.includes(fromName)) me.friend.push(fromName);
-    if(!fromUser.friend.includes(currentUser.username)) fromUser.friend.push(currentUser.username);
+//同意好友：双向更新好友列表+删除申请
+async function agreeApply(fromName,applyId){
+    //我方加好友
+    let newMyFriend = [...currentUser.friend_list||[],fromName];
+    await supabase.from('users').update({friend_list:newMyFriend}).eq('username',currentUser.username);
+    //对方加好友
+    const {data:fromUser}=await supabase.from('users').select('friend_list').eq('username',fromName);
+    let newFrFriend = [...fromUser[0].friend_list||[],currentUser.username];
+    await supabase.from('users').update({friend_list:newFrFriend}).eq('username',fromName);
     //删除申请
-    me.applyList = me.applyList.filter(x=>x.fromName!==fromName);
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+    await supabase.from('friend_apply').delete().eq('id',applyId);
+    currentUser.friend_list = newMyFriend;
     loadFriend();
     refreshApplyBadge();
     renderApplyList();
     alert("已添加为好友");
 }
 
-//拒绝好友
-function refuseApply(fromName){
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const me = userArr.find(x=>x.username===currentUser.username);
-    me.applyList = me.applyList.filter(x=>x.fromName!==fromName);
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
+//拒绝：只删申请
+async function refuseApply(applyId){
+    await supabase.from('friend_apply').delete().eq('id',applyId);
     refreshApplyBadge();
     renderApplyList();
 }
 
-//刷新申请角标
-function refreshApplyBadge(){
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const me = userArr.find(x=>x.username===currentUser.username);
+//刷新申请红点角标
+async function refreshApplyBadge(){
+    const {data:applyNum}=await supabase.from('friend_apply').select('id',{count:'exact'}).eq('to_name',currentUser.username);
     const badge = document.getElementById('applyBadge');
-    if(me.applyList.length>0){
+    if(applyNum.count>0){
         badge.classList.remove('hidden');
-        badge.innerText = me.applyList.length;
+        badge.innerText = applyNum.count;
     }else{
         badge.classList.add('hidden');
     }
 }
 
 //打开聊天自动标记已读
-function markMsgRead(){
-    let userArr = JSON.parse(localStorage.getItem(USER_KEY));
-    const me = userArr.find(x=>x.username===currentUser.username);
-    if(!me.msgRecord[nowChatUser]) return;
-    me.msgRecord[nowChatUser] = me.msgRecord[nowChatUser].map(item=>{
-        if(item.from===nowChatUser) item.read = true;
-        return item;
-    })
-    localStorage.setItem(USER_KEY,JSON.stringify(userArr));
-    loadChatRecord();
+async function markMsgRead(toName){
+    await supabase.from('chat_msg').update({is_read:true}).eq('to_user',currentUser.username).eq('from_user',toName).eq('is_read',false);
+    openChat(toName);
 }
 </script>
 </body>
