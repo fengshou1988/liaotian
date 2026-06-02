@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>云端聊天系统（终极修复版）</title>
+<title>云端聊天系统（最终完整版）</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑"}
@@ -36,6 +36,8 @@ body{background:#f5f5f5}
 .msg-content{padding:9px 13px;border-radius:16px;background:#fff}
 .msg-self .msg-content{background:#4285f4;color:#fff}
 .read-tag{font-size:11px;color:#888}
+.recall-btn{font-size:11px;color:#999;cursor:pointer;margin-top:3px}
+.recall-text{color:#999;font-style:italic}
 .input-area{padding:12px;display:flex;gap:10px}
 .msg-input{flex:1;height:46px;padding:10px;border:1px solid #ddd;border-radius:22px;outline:none}
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:#00000050;display:flex;align-items:center;justify-content:center}
@@ -48,8 +50,8 @@ body{background:#f5f5f5}
 <!-- 登录注册 -->
 <div id="authBox" class="auth-box">
     <div class="auth-tab">
-        <div id="tabLogin" class="active">登录</div>
-        <div id="tabReg">注册</div>
+        <div id="tabLogin" class="active" onclick="switchTab('login')">登录</div>
+        <div id="tabReg" onclick="switchTab('reg')">注册</div>
     </div>
     <div id="loginBox">
         <div class="form-item"><input id="loginUser" placeholder="用户名"></div>
@@ -98,7 +100,7 @@ body{background:#f5f5f5}
 <div id="applyModal" class="modal hidden"><div class="modal-inner"><div id="applyList"></div><button class="btn btn-red" onclick="closeModal()">关闭</button></div></div>
 
 <script>
-// ===================== 云端配置 =====================
+// ============ 你的固定云端参数，无需修改 ============
 const SUPABASE_URL = "https://clcdvikgogwpxvhtwdkc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_2FNPLa8GRWKoPco7ebpGqw_4D4L3uIt";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -106,24 +108,16 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 let chatUser = null;
 
-// 页面加载完成后初始化（修复按钮无响应核心）
 document.addEventListener('DOMContentLoaded', () => {
-    // 绑定按钮点击事件
     document.getElementById('regBtn').onclick = userRegister;
     document.getElementById('loginBtn').onclick = userLogin;
-    document.getElementById('tabLogin').onclick = () => switchTab('login');
-    document.getElementById('tabReg').onclick = () => switchTab('reg');
-    
-    // 刷新自动登录
     autoLogin();
 });
 
-// 生成唯一ID
 function createUID() {
     return Math.random().toString(36).slice(2,10).toUpperCase();
 }
 
-// 切换登录/注册
 function switchTab(type) {
     if(type === 'login'){
         document.getElementById('loginBox').classList.remove('hidden');
@@ -138,49 +132,36 @@ function switchTab(type) {
     }
 }
 
-// ===================== 注册功能（100%响应） =====================
+//注册
 async function userRegister() {
     const user = document.getElementById('regUser').value.trim();
     const pwd = document.getElementById('regPwd').value;
     const pwd2 = document.getElementById('regPwd2').value;
     const err = document.getElementById('regErr');
     err.innerText = '';
-
-    // 表单验证
     if(!/^[a-zA-Z0-9]{3,15}$/.test(user)) return err.innerText = "用户名：字母+数字3-15位";
     if(pwd.length < 6) return err.innerText = "密码至少6位";
     if(pwd !== pwd2) return err.innerText = "两次密码不一致";
-
-    // 查重
     const { data: hasUser } = await supabase.from('users').select('username').eq('username', user);
     if(hasUser.length) return err.innerText = "用户名已存在";
-
-    // 创建用户
-    const newUser = {
-        username: user, password: pwd, userid: createUID(),
-        avatar: "https://picsum.photos/id/"+Math.floor(Math.random()*99),
-        friend_list: []
-    };
-
+    const newUser = {username: user,password: pwd,userid: createUID(),avatar:"https://picsum.photos/id/"+Math.floor(Math.random()*99),friend_list: []};
     await supabase.from('users').insert([newUser]);
     localStorage.setItem('chat_login', JSON.stringify({user,pwd}));
     loginSuccess(newUser);
 }
 
-// ===================== 登录功能 =====================
+//登录
 async function userLogin() {
     const user = document.getElementById('loginUser').value.trim();
     const pwd = document.getElementById('loginPwd').value;
     const err = document.getElementById('loginErr');
-    
     const { data } = await supabase.from('users').select('*').eq('username',user).eq('password',pwd);
     if(!data.length) return err.innerText = "账号或密码错误";
-
     localStorage.setItem('chat_login', JSON.stringify({user,pwd}));
     loginSuccess(data[0]);
 }
 
-// 自动登录（刷新保持登录）
+//刷新自动登录
 async function autoLogin() {
     const cache = localStorage.getItem('chat_login');
     if(!cache) return;
@@ -189,7 +170,6 @@ async function autoLogin() {
     if(data.length) loginSuccess(data[0]);
 }
 
-// 登录成功渲染
 function loginSuccess(user) {
     currentUser = user;
     document.getElementById('authBox').classList.add('hidden');
@@ -201,12 +181,11 @@ function loginSuccess(user) {
     refreshBadge();
 }
 
-// 复制ID
 function copyID() {
-    navigator.clipboard.writeText(currentUser.userid).then(()=>alert('复制成功'));
+    navigator.clipboard.writeText(currentUser.userid).then(()=>alert('复制ID成功'));
 }
 
-// ===================== 好友/聊天功能 =====================
+//好友
 async function loadFriends() {
     const list = document.getElementById('friendList');
     list.innerHTML = '';
@@ -227,16 +206,14 @@ async function openChat(name) {
     document.getElementById('chatTitle').innerText = "与 "+name+" 聊天";
     const wrap = document.getElementById('msgWrap');
     wrap.innerHTML = '';
-
     const { data: msgs } = await supabase.from('chat_msg')
         .or(`from_user.eq.${currentUser.username},to_user.eq.${currentUser.username}`)
         .or(`from_user.eq.${name},to_user.eq.${name}`).order('create_at');
-
     msgs.forEach(m => {
         const div = document.createElement('div');
         div.className = 'msg-item ' + (m.from_user === currentUser.username ? 'msg-self' : '');
-        div.innerHTML = m.is_recall ? '<i>消息已撤回</i>' : 
-            `<div class="msg-content">${m.content}</div>${m.from_user===currentUser.username ? `<span class="read-tag">${m.is_read?'已读':'未读'}</span>` : ''}`;
+        div.innerHTML = m.is_recall ? '<i class="recall-text">消息已撤回</i>' : 
+            `<div class="msg-content">${m.content}</div>${m.from_user===currentUser.username ? `<span class="read-tag">${m.is_read?'已读':'未读'}</span><div class="recall-btn" onclick="recallMsg(${m.id})">撤回</div>` : ''}`;
         wrap.appendChild(div);
     });
     wrap.scrollTop = wrap.scrollHeight;
@@ -246,14 +223,17 @@ async function openChat(name) {
 async function sendMsg() {
     const val = document.getElementById('msgInput').value.trim();
     if(!val || !chatUser) return;
-    await supabase.from('chat_msg').insert([{
-        from_user:currentUser.username, to_user:chatUser, content:val, is_read:false, is_recall:false
-    }]);
+    await supabase.from('chat_msg').insert([{from_user:currentUser.username, to_user:chatUser, content:val, is_read:false, is_recall:false}]);
     document.getElementById('msgInput').value = '';
     openChat(chatUser);
 }
 
-// 好友申请
+async function recallMsg(id) {
+    await supabase.from('chat_msg').update({is_recall:true}).eq('id',id);
+    openChat(chatUser);
+}
+
+//申请弹窗
 function openAdd() { closeModal(); document.getElementById('addModal').classList.remove('hidden'); }
 function openApply() { closeModal(); document.getElementById('applyModal').classList.remove('hidden'); renderApply(); }
 function closeModal() { document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden')); }
@@ -271,16 +251,17 @@ async function renderApply() {
     const list = document.getElementById('applyList');
     list.innerHTML = '';
     data.forEach(item => {
-        list.innerHTML += `<div>${item.from_name}<br>
+        list.innerHTML += `<div style="padding:8px;border-bottom:1px solid #eee">${item.from_name}发来好友申请<br>
         <button class="btn btn-green" onclick="agree(${item.id},'${item.from_name}')">同意</button>
-        <button class="btn btn-red" onclick="refuse(${item.id})">拒绝</button></div><hr>`;
+        <button class="btn btn-red" onclick="refuse(${item.id})">拒绝</button></div>`;
     });
 }
 
 async function agree(id,name) {
-    await supabase.from('users').update({friend_list:[...currentUser.friend_list,name]}).eq('username',currentUser.username);
+    let newArr = [...currentUser.friend_list,name];
+    await supabase.from('users').update({friend_list:newArr}).eq('username',currentUser.username);
     await supabase.from('friend_apply').delete().eq('id',id);
-    currentUser.friend_list.push(name);
+    currentUser.friend_list = newArr;
     loadFriends(); openApply();
 }
 
