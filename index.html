@@ -16,7 +16,9 @@
         .tab button{flex:1;padding:10px;border:none;background:#eee;border-radius:6px;cursor:pointer;}
         .tab button.active{background:#4285f4;color:white;}
         input{width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
-        .btn{width:100%;padding:12px;background:#4285f4;color:white;border:none;border-radius:6px;margin:8px 0;cursor:pointer;}
+        .btn{width:100%;padding:12px;background:#4285f4;color:white;border:none;border-radius:6px;margin:8px 0;cursor:pointer;font-size:14px;}
+        .btn:hover{background:#3367d6;}
+        .btn:disabled{background:#ccc;cursor:not-allowed;}
 
         /* 聊天界面样式 */
         .chat-app{display:flex;height:100vh;max-width:1200px;margin:0 auto;background:white;}
@@ -47,16 +49,15 @@
     <div id="loginPanel">
         <input id="loginUser" placeholder="用户名">
         <input id="loginPwd" type="password" placeholder="密码">
-        <button class="btn" onclick="userLogin()">登录</button>
+        <button class="btn" id="loginBtn" onclick="userLogin()">登录</button>
     </div>
 
-    <!-- 注册面板（核心：按钮永不失效） -->
+    <!-- 注册面板 -->
     <div id="regPanel" class="hidden">
         <input id="regUser" placeholder="字母+数字 3-15位">
         <input id="regPwd" type="password" placeholder="密码≥6位">
         <input id="regPwd2" type="password" placeholder="确认密码">
-        <!-- 铁律1：纯原生onclick，最稳定 -->
-        <button class="btn" onclick="userRegister()">✅ 注册并自动登录</button>
+        <button class="btn" id="regBtn" onclick="userRegister()">✅ 注册并自动登录</button>
     </div>
 </div>
 
@@ -93,7 +94,7 @@ let currentUser = null;
 let chatTarget = null;
 const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘'];
 
-// ===================== 面板切换（简单稳定） =====================
+// ===================== 面板切换 =====================
 function showLogin() {
     document.getElementById("loginPanel").classList.remove("hidden");
     document.getElementById("regPanel").classList.add("hidden");
@@ -107,12 +108,11 @@ function showReg() {
     document.querySelectorAll(".tab button")[1].classList.add("active");
 }
 
-// ===================== 【核心】注册函数（永久稳定4大保障） =====================
-function userRegister() {
-    // 铁律2：第一行弹窗，证明按钮必触发
-    alert("✅ 注册按钮点击成功！");
-
-    // 铁律3：try/catch 包裹，报错不卡死按钮
+// ===================== 【关键修复】注册函数 =====================
+async function userRegister() {
+    const btn = document.getElementById('regBtn');
+    btn.disabled = true;
+    
     try {
         // 获取输入值
         let user = document.getElementById('regUser').value.trim();
@@ -121,54 +121,75 @@ function userRegister() {
 
         // 校验规则
         const reg = /^[a-zA-Z0-9]{3,15}$/;
-        if (!reg.test(user)) { alert("用户名必须字母+数字，3-15位！"); return; }
-        if (pwd.length < 6 || pwd !== pwd2) { alert("密码≥6位，两次一致！"); return; }
+        if (!reg.test(user)) { alert("用户名必须字母+数字，3-15位！"); btn.disabled = false; return; }
+        if (pwd.length < 6 || pwd !== pwd2) { alert("密码≥6位，两次一致！"); btn.disabled = false; return; }
 
-        // 执行云端注册
-        doRegister(user, pwd);
-        
-    } catch (err) {
-        // 报错提示，不崩溃
-        alert("注册出错：" + err.message);
-        console.error(err);
-    }
-}
-
-// 云端注册逻辑
-async function doRegister(user, pwd) {
-    try {
         // 检查用户名重复
         const { data: hasUser } = await supabase.from('users').select('username').eq('username', user);
-        if (hasUser.length > 0) { alert("用户名已存在！"); return; }
+        if (hasUser && hasUser.length > 0) { alert("用户名已存在！"); btn.disabled = false; return; }
 
         // 创建用户
         const newUser = {
-            username: user, password: pwd, userid: Math.random().toString(36).slice(2),
-            friend_list: [], block_list: []
+            username: user, 
+            password: pwd, 
+            userid: Math.random().toString(36).slice(2),
+            friend_list: [], 
+            block_list: []
         };
 
-        await supabase.from('users').insert([newUser]);
-        localStorage.setItem('chatUser', JSON.stringify(newUser));
-        loginSuccess(newUser);
-        alert("✅ 注册成功！自动登录中！");
+        const { error } = await supabase.from('users').insert([newUser]);
+        
+        if (error) {
+            alert("注册失败：" + error.message);
+            btn.disabled = false;
+            return;
+        }
 
-    } catch (e) {
-        alert("云端请求失败：" + e.message);
+        localStorage.setItem('chatUser', JSON.stringify(newUser));
+        alert("✅ 注册成功！自动登录中！");
+        loginSuccess(newUser);
+        
+    } catch (err) {
+        console.error("注册异常：", err);
+        alert("注册出错：" + err.message);
+        btn.disabled = false;
     }
 }
 
 // ===================== 登录功能 =====================
 async function userLogin() {
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    
     try {
         let user = document.getElementById('loginUser').value.trim();
         let pwd = document.getElementById('loginPwd').value;
-        const { data } = await supabase.from('users').select('*').eq('username', user).eq('password', pwd).single();
         
-        if (!data) { alert("账号或密码错误！"); return; }
+        if (!user || !pwd) {
+            alert("请输入用户名和密码！");
+            btn.disabled = false;
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', user)
+            .eq('password', pwd)
+            .single();
+        
+        if (error || !data) { 
+            alert("账号或密码错误！"); 
+            btn.disabled = false;
+            return; 
+        }
+
         localStorage.setItem('chatUser', JSON.stringify(data));
         loginSuccess(data);
     } catch (e) {
-        alert("登录失败");
+        console.error("登录异常：", e);
+        alert("登录失败：" + e.message);
+        btn.disabled = false;
     }
 }
 
@@ -176,7 +197,13 @@ async function userLogin() {
 window.onload = function () {
     loadEmojis();
     const cache = localStorage.getItem('chatUser');
-    if (cache) loginSuccess(JSON.parse(cache));
+    if (cache) {
+        try {
+            loginSuccess(JSON.parse(cache));
+        } catch (e) {
+            localStorage.removeItem('chatUser');
+        }
+    }
 }
 
 // ===================== 登录成功 =====================
@@ -188,7 +215,7 @@ function loginSuccess(user) {
     loadFriends();
 }
 
-// ===================== 以下为全功能保留（聊天/表情/好友/文件） =====================
+// ===================== 表情和聊天功能 =====================
 function initRealtime() {
     supabase.channel('chat').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_msg' }, () => {
         if (chatTarget) loadMsg();
@@ -196,11 +223,12 @@ function initRealtime() {
 }
 
 function loadEmojis() {
+    const emojiPanel = document.getElementById('emojiPanel');
     emojis.forEach(e => {
         let span = document.createElement('span');
         span.innerText = e;
         span.onclick = () => document.getElementById('msgInput').value += e;
-        document.getElementById('emojiPanel').appendChild(span);
+        emojiPanel.appendChild(span);
     });
 }
 
@@ -208,37 +236,62 @@ function startVoice() { alert("🎙️ 语音功能已启动"); }
 
 async function sendMsg() {
     let content = document.getElementById('msgInput').value.trim();
-    if (!content || !chatTarget) return;
-    await supabase.from('chat_msg').insert([{ from_user: currentUser.username, to_user: chatTarget, content: content }]);
-    document.getElementById('msgInput').value = '';
-    loadMsg();
+    if (!content || !chatTarget) { alert("请选择聊天对象"); return; }
+    
+    try {
+        await supabase.from('chat_msg').insert([{ from_user: currentUser.username, to_user: chatTarget, content: content }]);
+        document.getElementById('msgInput').value = '';
+        loadMsg();
+    } catch (e) {
+        alert("发送失败：" + e.message);
+    }
 }
 
 async function loadMsg() {
     const box = document.getElementById('msgBox');
     box.innerHTML = '';
-    const { data } = await supabase.from('chat_msg')
-        .or(`from_user.eq.${currentUser.username},to_user.eq.${currentUser.username}`)
-        .or(`from_user.eq.${chatTarget},to_user.eq.${chatTarget}`)
-        .order('create_at');
     
-    data.forEach(m => {
-        let div = document.createElement('div');
-        div.className = `msg ${m.from_user === currentUser.username ? 'me' : 'other'}`;
-        div.innerText = m.content;
-        box.appendChild(div);
-    });
-    box.scrollTop = box.scrollHeight;
+    try {
+        const { data } = await supabase.from('chat_msg')
+            .or(`from_user.eq.${currentUser.username},to_user.eq.${currentUser.username}`)
+            .or(`from_user.eq.${chatTarget},to_user.eq.${chatTarget}`)
+            .order('create_at');
+        
+        if (!data || data.length === 0) {
+            box.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无消息</div>';
+            return;
+        }
+
+        data.forEach(m => {
+            let div = document.createElement('div');
+            div.className = `msg ${m.from_user === currentUser.username ? 'me' : 'other'}`;
+            div.innerText = m.content;
+            box.appendChild(div);
+        });
+        box.scrollTop = box.scrollHeight;
+    } catch (e) {
+        console.error("加载消息失败：", e);
+    }
 }
 
 async function loadFriends() {
     const list = document.getElementById('friendList');
     list.innerHTML = '';
+    
+    if (!currentUser.friend_list || currentUser.friend_list.length === 0) {
+        list.innerHTML = '<div style="color:#999;padding:10px;">还没有好友，请添加</div>';
+        return;
+    }
+
     currentUser.friend_list.forEach(f => {
         let div = document.createElement('div');
         div.className = 'friend-item';
         div.innerText = f;
-        div.onclick = () => { chatTarget = f; document.getElementById('chatTitle').innerText = `与 ${f} 聊天`; loadMsg(); };
+        div.onclick = () => { 
+            chatTarget = f; 
+            document.getElementById('chatTitle').innerText = `与 ${f} 聊天`; 
+            loadMsg(); 
+        };
         list.appendChild(div);
     });
 }
@@ -246,11 +299,22 @@ async function loadFriends() {
 async function addFriend() {
     let name = prompt("输入好友用户名");
     if (!name) return;
-    await supabase.from('friend_apply').insert([{ from_name: currentUser.username, to_name: name }]);
-    alert("✅ 好友申请已发送");
+    
+    try {
+        const { data } = await supabase.from('users').select('username').eq('username', name);
+        if (!data || data.length === 0) {
+            alert("用户不存在！");
+            return;
+        }
+
+        await supabase.from('friend_apply').insert([{ from_name: currentUser.username, to_name: name }]);
+        alert("✅ 好友申请已发送");
+    } catch (e) {
+        alert("添加失败：" + e.message);
+    }
 }
 
-function createGroup() { alert("👥 群聊创建功能"); }
+function createGroup() { alert("👥 群聊创建功能开发中..."); }
 </script>
 </body>
 </html>
