@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>在线客服</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
@@ -12,44 +12,68 @@
     .container {display: flex; gap: 10px; height: calc(100vh - 20px); max-height: 700px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; background: #fff;}
     .sidebar {width: 260px; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 10px; display: none; flex-direction: column; gap:8px;}
     .sidebar-header {display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-weight:500; font-size:16px; color:#1e293b;}
-    .badge {background: #ef4444; color: white; font-size: 12px; padding: 2px 7px; border-radius: 10px; min-width: 20px; text-align: center;}
+    .badge {background: #ef4444; color: white; font-size: 12px; padding: 2px 7px; border-radius: 10px; min-width: 20px; text-align: center; cursor: pointer; transition: background .2s;}
+    .badge:hover {background: #dc2626;}
     .conv-list {flex:1; overflow-y: auto;}
-    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px;}
+    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0; font-size: 14px; position: relative; transition: all .2s; display: flex; align-items: center; gap: 8px;}
     .conv-item:hover {border-color: #bfdbfe; background: #f8fafc;}
     .conv-item.active {background: #dbeafe; border-color: #3b82f6;}
     .conv-info {flex:1;}
-    .conv-nick {font-weight: 500; margin-bottom: 2px; display: flex; justify-content: space-between;}
-    .conv-time {font-size: 11px; color: #94a3b8;}
+    .conv-nick {font-weight: 500; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;}
+    .conv-id {font-size: 12px; color: #64748b;}
+    .conv-time {font-size: 11px; color: #94a3b8; margin-top:4px; text-align:right;}
+    .pagination {display:flex; justify-content: space-between; align-items:center; padding:8px 4px; font-size:13px; color:#64748b;}
+    .pagination button {padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #d1d5db; background:#fff; cursor:pointer;}
+    .pagination button:disabled {opacity:.5; cursor:not-allowed;}
     .chat-main {flex: 1; display: flex; flex-direction: column; background: #fff; min-width: 0;}
-    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500; font-size: 16px;}
-    #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa; min-height: 0;}
+    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500; font-size: 16px; flex-shrink: 0;}
+    #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa; min-height: 0; scroll-behavior: smooth;}
+    /* 消息布局 + 文字头像样式 */
     .msg {margin: 10px 0; display: flex; gap: 8px; max-width: 92%;}
-    .msg-avatar {width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; overflow: hidden; background: #e2e8f0; display: flex; align-items: center; justify-content: center;}
-    .msg-avatar img {width: 100%; height: 100%; object-fit: cover;}
-    .msg-bubble {padding: 9px 13px; border-radius: 12px; max-width: calc(100% - 44px); line-height: 1.5; word-wrap: break-word;}
+    .msg-avatar {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 500; color: #fff;
+    }
+    .avatar-admin {background: #2563eb;}
+    .avatar-user {background: #94a3b8;}
+    .msg-bubble {padding: 9px 13px; border-radius: 12px; max-width: calc(100% - 44px); line-height: 1.5; word-wrap: break-word; position: relative;}
     .msg small {display: block; font-size: 11px; margin-top: 6px; opacity: 0.8;}
-    .msg-img {max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer;}
+    .msg-img {max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; object-fit: contain; background: #f1f5f9;}
+    /* 自己消息靠右 */
     .my-msg {flex-direction: row-reverse; margin-left: auto;}
     .my-msg .msg-bubble {background: #2563eb; color: white; text-align: right;}
+    /* 对方消息靠左 */
     .other-msg {flex-direction: row; margin-right: auto;}
-    .other-msg .msg-bubble {background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b;}
-    .input-area {display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff;}
+    .other-msg .msg-bubble {background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b; text-align: left;}
+    .unread-mark {border-left: 3px solid #ef4444; padding-left: 10px; margin-left: -13px;}
+    .input-area {display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0;}
+    .input-row {display: flex; align-items: center; gap: 8px; width: 100%;}
     input[type="text"] {flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px; min-width: 80px;}
     input[type="file"] {display: none;}
-    .icon-btn {padding: 10px 12px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 18px;}
-    button {padding: 10px 18px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;}
+    .icon-btn {flex-shrink: 0; padding: 10px 12px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 18px; line-height: 1;}
+    button {flex-shrink: 0; padding: 10px 18px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; white-space: nowrap;}
     button:hover {background: #1d4ed8;}
     .tip {font-size: 13px; color: #666; margin: 8px 0; text-align: center;}
+    .preview-img {flex-shrink: 0; max-height: 40px; border-radius: 4px; border: 1px solid #ddd; object-fit: contain; margin-left: 6px;}
     .modal {position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999;}
     .modal-content {background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 360px;}
+    .modal-content h3 {margin-bottom: 15px; color: #1e293b;}
+    .modal-content input {width: 100%; margin-bottom: 12px;}
     .hidden {display: none !important;}
-    #imgZoomModal {position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:1000;}
+    #imgZoomModal {position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; cursor:pointer;}
     #zoomImg {max-width:90%; max-height:90%; border-radius:8px;}
-    .conv-avatar {width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;}
-    .conv-avatar img {width: 100%; height: 100%; object-fit: cover;}
+    .img-error {padding: 12px; color: #666; background: #f1f5f9; border-radius: 8px; font-size: 13px; text-align: center;}
+    /* 对话列表文字头像 */
+    .conv-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 500; color: #fff;
+    }
   </style>
 </head>
 <body>
+  <!-- 注册弹窗 -->
   <div id="registerModal" class="modal hidden">
     <div class="modal-content">
       <h3>请先填写您的信息</h3>
@@ -59,15 +83,17 @@
     </div>
   </div>
 
+  <!-- 图片放大弹窗 -->
   <div id="imgZoomModal" class="hidden" onclick="this.classList.add('hidden')">
     <img id="zoomImg" src="" alt="放大图片">
   </div>
 
   <div class="container" id="app-container">
+    <!-- 管理员侧边栏 -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <span>对话列表</span>
-        <span id="totalUnread" class="badge hidden">0</span>
+        <span id="totalUnread" class="badge hidden" title="点击直接跳转到未读消息位置">0</span>
       </div>
       <div class="conv-list" id="conv-list"></div>
       <div class="pagination" id="pagination">
@@ -77,6 +103,7 @@
       </div>
     </div>
 
+    <!-- 聊天主区域 -->
     <div class="chat-main">
       <div class="header" id="page-title">在线客服</div>
       <div id="chat-box"></div>
@@ -86,7 +113,7 @@
         <div id="previewArea" style="display: flex; align-items: center;"></div>
         <div class="input-row">
           <input type="text" id="msg-input" placeholder="输入消息...按回车可直接发送">
-          <button onclick="sendMessage()">发送</button>
+          <button onclick="sendMessage()" title="发送消息">发送</button>
         </div>
       </div>
     </div>
@@ -99,146 +126,247 @@
 
   <script>
     const ADMIN_KEY = "MySecurePass2026";
-    const MAX_IMG_SIZE = 1024 * 1024;
+    const MAX_IMG_SIZE = 1024 * 1024; // 1MB
     const PAGE_SIZE = 15;
     const AUTO_CLEAR_DAYS = 90;
 
-    // ✅ 管理员头像设置：这里替换成你自己图片的在线链接即可
-    const ADMIN_AVATAR = "https://via.placeholder.com/150/2563eb/ffffff?text=客服";
-
-    // ========== 以下是完整功能代码 ==========
     const firebaseConfig = {
-      apiKey: "AIzaSyB5yKzG8m9ZfU7QeXrYf8yKxQeRzT1wU2v3",
-      authDomain: "chat-service-12345.firebaseapp.com",
-      databaseURL: "https://chat-service-12345-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "chat-service-12345",
-      storageBucket: "chat-service-12345.appspot.com",
-      messagingSenderId: "123456789012",
-      appId: "1:123456789012:web:abcdef1234567890abcdef"
+      apiKey: "AIzaSyCKdyYzaPpl92RjFQQmI8oLZxJAOTXZ7p4",
+      authDomain: "lifengshou99999.firebaseapp.com",
+      databaseURL: "https://lifengshou99999-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "lifengshou99999",
+      messagingSenderId: "356014471592",
+      appId: "1:356014471592:web:e01d2ce14cd2a93a42859d"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    let currentChatId = null;
-    let isAdmin = false;
-    let userInfo = {};
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get("key") === ADMIN_KEY;
+    let currentConvId = null;
+    let selectedImageBase64 = null;
+    let unreadCount = {};
     let allConversations = [];
     let currentPage = 1;
+    let lastUnreadKey = null;
 
-    function checkAdmin() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("key") === ADMIN_KEY;
-    }
-
-    isAdmin = checkAdmin();
-    if (isAdmin) {
-      document.getElementById("sidebar").style.display = "flex";
-      document.getElementById("page-title").textContent = "客服后台";
-      loadConversations();
+    if (!isAdmin) {
+      const saved = localStorage.getItem("userInfo");
+      if (!saved) {
+        document.getElementById("registerModal").classList.remove("hidden");
+      } else {
+        currentConvId = localStorage.getItem("conv_id");
+        loadMessages();
+      }
     } else {
-      document.getElementById("registerModal").classList.remove("hidden");
+      document.getElementById("page-title").textContent = "客服管理后台";
+      document.getElementById("sidebar").style.display = "flex";
+      document.getElementById("totalUnread").addEventListener("click", jumpToUnread);
+      loadConversations();
+      listenNewMessage();
+      setInterval(autoClearOldConversations, 86400000);
     }
 
     function submitRegister() {
-      const nickname = document.getElementById("nickname").value.trim() || "游客";
-      const contact = document.getElementById("contact").value.trim() || "";
-      userInfo = { nickname, contact };
-      currentChatId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-      db.ref(`conversations/${currentChatId}/info`).set({
-        ...userInfo,
-        createTime: firebase.database.ServerValue.TIMESTAMP,
-        unread: 0
-      });
+      const nickname = document.getElementById("nickname").value.trim();
+      const contact = document.getElementById("contact").value.trim();
+      if (!nickname) return alert("请填写昵称");
+
+      const convId = "conv_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+      const userInfo = {
+        nickname,
+        contact: contact || "未填写",
+        joinTime: Date.now()
+      };
+      localStorage.setItem("conv_id", convId);
+      localStorage.setItem("userInfo", JSON.stringify(userInfo));
+
+      db.ref(`chats/${convId}/info`).set(userInfo);
+
       document.getElementById("registerModal").classList.add("hidden");
-      listenMessages();
+      currentConvId = convId;
+      loadMessages();
+    }
+
+    document.getElementById("imgInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > MAX_IMG_SIZE) {
+        return alert(`图片过大！请选择小于${MAX_IMG_SIZE/1024}KB的图片`);
+      }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        selectedImageBase64 = ev.target.result;
+        document.getElementById("previewArea").innerHTML = `<img src="${selectedImageBase64}" class="preview-img" alt="预览">`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function autoClearOldConversations() {
+      const cutoff = Date.now() - AUTO_CLEAR_DAYS * 86400000;
+      db.ref("chats").once("value", snapshot => {
+        snapshot.forEach(convSnap => {
+          const info = convSnap.child("info").val();
+          if (info && info.joinTime && info.joinTime < cutoff) {
+            db.ref(`chats/${convSnap.key}`).remove();
+          }
+        });
+      });
+    }
+
+    function loadConversations() {
+      db.ref("chats").orderByChild("info/joinTime").once("value", snapshot => {
+        allConversations = [];
+        snapshot.forEach(convSnap => {
+          const convId = convSnap.key;
+          const info = convSnap.child("info").val() || { nickname: "访客", joinTime: 0 };
+          const lastMsg = convSnap.child("messages").val() || {};
+          const lastTime = Object.values(lastMsg).pop()?.time || info.joinTime;
+          allConversations.push({ convId, info, lastTime });
+        });
+        allConversations.sort((a, b) => b.lastTime - a.lastTime);
+        renderPage();
+      });
+    }
+
+    function renderPage() {
+      const listEl = document.getElementById("conv-list");
+      listEl.innerHTML = "";
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      const pageData = allConversations.slice(start, end);
+
+      pageData.forEach(item => {
+        const { convId, info } = item;
+        const unread = unreadCount[convId] || 0;
+        const div = document.createElement("div");
+        div.className = `conv-item ${convId === currentConvId ? "active" : ""}`;
+        div.innerHTML = `
+          <div class="conv-avatar avatar-user">游</div>
+          <div class="conv-info">
+            <div class="conv-nick">
+              ${info.nickname}
+              ${unread ? `<span class="badge">${unread}</span>` : ""}
+            </div>
+            <div class="conv-id">${convId.slice(5,13)}...</div>
+            <div class="conv-time">${new Date(info.joinTime).toLocaleString("zh-CN", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"})}</div>
+          </div>
+        `;
+        div.onclick = () => switchConv(convId);
+        listEl.appendChild(div);
+      });
+
+      const totalPages = Math.ceil(allConversations.length / PAGE_SIZE);
+      document.getElementById("pageInfo").textContent = `第 ${currentPage} / ${totalPages || 1} 页`;
+      document.getElementById("prevPage").disabled = currentPage <= 1;
+      document.getElementById("nextPage").disabled = currentPage >= totalPages;
+    }
+
+    document.getElementById("prevPage").addEventListener("click", () => {
+      if (currentPage > 1) { currentPage--; renderPage(); }
+    });
+    document.getElementById("nextPage").addEventListener("click", () => {
+      const totalPages = Math.ceil(allConversations.length / PAGE_SIZE);
+      if (currentPage < totalPages) { currentPage++; renderPage(); }
+    });
+
+    function listenNewMessage() {
+      db.ref("chats").on("child_changed", snap => {
+        const convId = snap.key;
+        if (convId !== currentConvId) {
+          unreadCount[convId] = (unreadCount[convId] || 0) + 1;
+          lastUnreadKey = convId;
+          updateUnreadTotal();
+          loadConversations();
+        }
+      });
+    }
+
+    function updateUnreadTotal() {
+      const total = Object.values(unreadCount).reduce((a,b) => a + b, 0);
+      const el = document.getElementById("totalUnread");
+      el.textContent = total;
+      el.classList.toggle("hidden", total === 0);
+    }
+
+    function jumpToUnread() {
+      if (!lastUnreadKey) return;
+      switchConv(lastUnreadKey);
+    }
+
+    function switchConv(convId) {
+      currentConvId = convId;
+      unreadCount[convId] = 0;
+      updateUnreadTotal();
+      document.getElementById("chat-box").innerHTML = "";
+      renderPage();
+      loadMessages();
+    }
+
+    function loadMessages() {
+      if (!currentConvId) return;
+      const box = document.getElementById("chat-box");
+      const msgRef = db.ref(`chats/${currentConvId}/messages`);
+      msgRef.off("child_added");
+      msgRef.on("child_added", snap => {
+        const d = snap.val();
+        const div = document.createElement("div");
+        const isMy = d.from === (isAdmin ? "admin" : "user");
+        div.className = `msg ${isMy ? "my-msg" : "other-msg"}`;
+        const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
+
+        // 头像文字：管理员显示“客服”，访客显示“游客”
+        const avatarText = isMy ? (isAdmin ? "客服" : "游客") : (isAdmin ? "游客" : "客服");
+        const avatarClass = isMy ? (isAdmin ? "avatar-admin" : "avatar-user") : (isAdmin ? "avatar-user" : "avatar-admin");
+
+        let content = `<div class="msg-avatar ${avatarClass}">${avatarText}</div><div class="msg-bubble">`;
+        if (d.image) {
+          content += `<img src="${d.image}" class="msg-img" alt="图片" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\\'img-error\\'>图片加载失败</div>'" onclick="zoomImage(this.src)">`;
+        }
+        if (d.text) {
+          content += `<div style="margin-top:${d.image ? '8px' : '0'};">${d.text}</div>`;
+        }
+        content += `<small>${time}</small></div>`;
+        div.innerHTML = content;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+      });
+    }
+
+    function zoomImage(src) {
+      if (!src) return;
+      document.getElementById("zoomImg").src = src;
+      document.getElementById("imgZoomModal").classList.remove("hidden");
     }
 
     function sendMessage() {
       const input = document.getElementById("msg-input");
       const text = input.value.trim();
-      if (!text && !document.getElementById("previewArea").innerHTML) return;
+      if (!text && !selectedImageBase64) return;
+      if (!currentConvId) return;
 
-      const msg = {
+      const msgData = {
         from: isAdmin ? "admin" : "user",
-        text: text,
-        time: firebase.database.ServerValue.TIMESTAMP,
-        read: isAdmin
+        time: Date.now()
       };
+      if (text) msgData.text = text;
+      if (selectedImageBase64) msgData.image = selectedImageBase64;
 
-      if (!isAdmin) {
-        db.ref(`conversations/${currentChatId}/info/unread`).transaction(count => (count || 0) + 1);
-      }
+      db.ref(`chats/${currentConvId}/messages`).push(msgData);
 
-      db.ref(`conversations/${currentChatId}/messages`).push(msg);
       input.value = "";
+      selectedImageBase64 = null;
       document.getElementById("previewArea").innerHTML = "";
+      document.getElementById("imgInput").value = "";
     }
 
-    function listenMessages() {
-      db.ref(`conversations/${currentChatId}/messages`).on("value", snap => {
-        const box = document.getElementById("chat-box");
-        box.innerHTML = "";
-        const messages = snap.val() || {};
-        Object.values(messages).forEach(m => renderMessage(m));
-        box.scrollTop = box.scrollHeight;
-      });
-    }
-
-    function renderMessage(m) {
-      const box = document.getElementById("chat-box");
-      const div = document.createElement("div");
-      div.className = m.from === "admin" ? "my-msg msg" : "other-msg msg";
-      const avatar = m.from === "admin" ? ADMIN_AVATAR : "https://via.placeholder.com/150/94a3b8/ffffff?text=用";
-      const time = new Date(m.time).toLocaleString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-      div.innerHTML = `
-        <div class="msg-avatar"><img src="${avatar}" alt="头像"></div>
-        <div class="msg-bubble">
-          ${m.text || ""}
-          <small>${time}</small>
-        </div>
-      `;
-      box.appendChild(div);
-    }
-
-    function loadConversations() {
-      db.ref("conversations").orderByChild("info/createTime").limitToLast(50).on("value", snap => {
-        allConversations = [];
-        snap.forEach(child => {
-          const id = child.key;
-          const info = child.val().info || {};
-          allConversations.unshift({ id, ...info });
-        });
-        renderConversations();
-      });
-    }
-
-    function renderConversations() {
-      const list = document.getElementById("conv-list");
-      list.innerHTML = "";
-      const start = (currentPage - 1) * PAGE_SIZE;
-      const pageData = allConversations.slice(start, start + PAGE_SIZE);
-      pageData.forEach(conv => {
-        const item = document.createElement("div");
-        item.className = "conv-item";
-        item.innerHTML = `
-          <div class="conv-avatar"><img src="https://via.placeholder.com/150/94a3b8/ffffff?text=${conv.nickname?.charAt(0) || "游"}" alt="头像"></div>
-          <div class="conv-info">
-            <div class="conv-nick">${conv.nickname || "游客"} ${conv.unread ? `<span class="badge">${conv.unread}</span>` : ""}</div>
-            <div class="conv-time">${new Date(conv.createTime).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
-          </div>
-        `;
-        item.onclick = () => {
-          currentChatId = conv.id;
-          document.querySelectorAll(".conv-item").forEach(i => i.classList.remove("active"));
-          item.classList.add("active");
-          db.ref(`conversations/${conv.id}/info/unread`).set(0);
-          listenMessages();
-        };
-        list.appendChild(item);
-      });
-    }
-
-    document.getElementById("msg-input").addEventListener("keydown", e => e.key === "Enter" && sendMessage());
+    document.getElementById("msg-input").addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
   </script>
 </body>
 </html>
