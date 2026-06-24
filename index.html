@@ -23,8 +23,10 @@
     .msg {margin: 10px 0; padding: 9px 13px; border-radius: 12px; max-width: 85%; line-height: 1.5; word-wrap: break-word;}
     .msg small {display: block; font-size: 11px; margin-top: 6px; opacity: 0.8;}
     .msg-img {max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; object-fit: contain; background: #f1f5f9;}
-    .user {background: #2563eb; color: white; margin-left: auto; text-align: right;}
-    .admin {background: #ffffff; border: 1px solid #e2e8f0; margin-right: auto; color: #1e293b;}
+    /* 自己发的消息靠右 */
+    .my-msg {background: #2563eb; color: white; margin-left: auto; text-align: right;}
+    /* 对方消息靠左 */
+    .other-msg {background: #ffffff; border: 1px solid #e2e8f0; margin-right: auto; color: #1e293b; text-align: left;}
     .input-area {display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0;}
     .input-row {display: flex; align-items: center; gap: 8px; width: 100%;}
     input[type="text"] {flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px; min-width: 80px;}
@@ -60,7 +62,7 @@
   </div>
 
   <div class="container" id="app-container">
-    <!-- 管理员侧边栏 -->
+    <!-- 管理员侧边栏：保留未读提醒 -->
     <div class="sidebar" id="sidebar">
       <h4>对话列表 <span id="totalUnread" class="badge hidden">0</span></h4>
       <div id="conv-list"></div>
@@ -105,7 +107,7 @@
     const isAdmin = urlParams.get("key") === ADMIN_KEY;
     let currentConvId = null;
     let selectedImageBase64 = null;
-    let unreadCount = {};
+    let unreadCount = {}; // 用于记录未读数量
 
     if (!isAdmin) {
       const saved = localStorage.getItem("userInfo");
@@ -119,6 +121,7 @@
       document.getElementById("page-title").textContent = "客服管理后台";
       document.getElementById("sidebar").style.display = "block";
       loadConversations();
+      listenNewMessage(); // 监听新消息，更新提醒
     }
 
     function submitRegister() {
@@ -155,6 +158,7 @@
       reader.readAsDataURL(file);
     });
 
+    // 加载对话列表 + 显示未读提醒
     function loadConversations() {
       const listEl = document.getElementById("conv-list");
       db.ref("chats").on("value", snapshot => {
@@ -180,9 +184,20 @@
       });
     }
 
+    // 监听新消息，自动增加未读提醒
+    function listenNewMessage() {
+      db.ref("chats").on("child_changed", snap => {
+        const convId = snap.key;
+        if (convId !== currentConvId) {
+          unreadCount[convId] = (unreadCount[convId] || 0) + 1;
+          loadConversations();
+        }
+      });
+    }
+
     function switchConv(convId) {
       currentConvId = convId;
-      unreadCount[convId] = 0;
+      unreadCount[convId] = 0; // 打开对话后清空未读
       document.getElementById("chat-box").innerHTML = "";
       document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
       event.currentTarget.classList.add("active");
@@ -197,7 +212,8 @@
       msgRef.on("child_added", snap => {
         const d = snap.val();
         const div = document.createElement("div");
-        div.className = `msg ${d.from}`;
+        // 自己发的靠右，对方发的靠左
+        div.className = `msg ${d.from === (isAdmin ? "admin" : "user") ? "my-msg" : "other-msg"}`;
         const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
         let content = "";
         if (d.image) {
