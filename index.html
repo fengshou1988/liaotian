@@ -44,7 +44,7 @@
 </head>
 <body>
   <!-- 注册弹窗 -->
-  <div id="registerModal" class="modal">
+  <div id="registerModal" class="modal hidden">
     <div class="modal-content">
       <h3>请先填写您的信息</h3>
       <input type="text" id="nickname" placeholder="请输入您的昵称" required>
@@ -103,13 +103,15 @@
     let selectedImageBase64 = null;
     let unreadCount = {};
 
-    // 访客：检查是否已注册
+    // 访客模式
     if (!isAdmin) {
       const saved = localStorage.getItem("userInfo");
       if (!saved) {
         document.getElementById("registerModal").classList.remove("hidden");
       } else {
-        initGuest();
+        currentConvId = localStorage.getItem("conv_id");
+        document.getElementById("page-title").textContent = "在线联系";
+        loadMessages();
       }
     } else {
       document.getElementById("page-title").textContent = "客服管理后台";
@@ -121,13 +123,13 @@
     function submitRegister() {
       const nickname = document.getElementById("nickname").value.trim();
       const contact = document.getElementById("contact").value.trim();
-      if (!nickname) return alert("请填写昵称");
+      if (!nickname) return alert("请填写您的昵称");
 
       const convId = "conv_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
       localStorage.setItem("conv_id", convId);
       localStorage.setItem("userInfo", JSON.stringify({ nickname, contact }));
 
-      // 保存访客信息到数据库
+      // 保存用户信息
       db.ref(`chats/${convId}/info`).set({
         nickname,
         contact: contact || "未填写",
@@ -136,14 +138,6 @@
 
       document.getElementById("registerModal").classList.add("hidden");
       currentConvId = convId;
-      loadMessages();
-    }
-
-    function initGuest() {
-      const convId = localStorage.getItem("conv_id");
-      if (!convId) return submitRegister();
-      currentConvId = convId;
-      document.getElementById("page-title").textContent = "在线联系";
       loadMessages();
     }
 
@@ -164,8 +158,8 @@
       const cutoff = Date.now() - MAX_KEEP_DAYS * 24 * 60 * 60 * 1000;
       db.ref("chats").once("value", snapshot => {
         snapshot.forEach(convSnap => {
-          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).once("value", msgsSnap => {
-            msgsSnap.forEach(msg => msg.ref.remove());
+          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).once("value", msgs => {
+            msgs.forEach(m => m.ref.remove());
           });
         });
       });
@@ -173,7 +167,7 @@
     cleanOldMessages();
     setInterval(cleanOldMessages, 86400000);
 
-    // 管理员：加载对话列表 + 未读提醒
+    // 管理员加载对话列表
     function loadConversations() {
       const listEl = document.getElementById("conv-list");
       listEl.innerHTML = "";
@@ -184,43 +178,45 @@
           const convId = convSnap.key;
           const info = convSnap.child("info").val() || { nickname: "访客" };
           const unread = unreadCount[convId] || 0;
-          if (unread > 0) total += unread;
+          total += unread;
 
           const div = document.createElement("div");
           div.className = `conv-item ${convId === currentConvId ? "active" : ""}`;
           div.innerHTML = `
-            <div class="conv-nick">${info.nickname} ${unread > 0 ? `<span class="badge" style="float:right;">${unread}</span>` : ""}</div>
+            <div class="conv-nick">${info.nickname} ${unread ? `<span class="badge" style="float:right;">${unread}</span>` : ""}</div>
             <div class="conv-id">${convId.slice(5,13)}...</div>
           `;
           div.onclick = () => switchConv(convId);
           listEl.appendChild(div);
-
-          // 监听新消息，更新未读
-          db.ref(`chats/${convId}/messages`).on("child_added", msgSnap => {
-            if (convId !== currentConvId && msgSnap.val().from === "user") {
-              unreadCount[convId] = (unreadCount[convId] || 0) + 1;
-              updateConvList();
-            }
-          });
         });
         document.getElementById("totalUnread").textContent = total;
         document.getElementById("totalUnread").classList.toggle("hidden", total === 0);
       });
+
+      // 监听新消息更新未读
+      db.ref("chats").on("child_added", convSnap => {
+        const convId = convSnap.key;
+        convSnap.ref.child("messages").on("child_added", msgSnap => {
+          const msg = msgSnap.val();
+          if (isAdmin && convId !== currentConvId && msg.from === "user") {
+            unreadCount[convId] = (unreadCount[convId] || 0) + 1;
+            loadConversations();
+          }
+        });
+      });
     }
 
-    function updateConvList() {
-      loadConversations();
-    }
-
+    // 切换对话
     function switchConv(convId) {
       currentConvId = convId;
-      unreadCount[convId] = 0; // 点击后清除未读
+      unreadCount[convId] = 0;
       document.getElementById("chat-box").innerHTML = "";
       document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
       event.currentTarget.classList.add("active");
       loadMessages();
     }
 
+    // 加载消息
     function loadMessages() {
       if (!currentConvId) return;
       const box = document.getElementById("chat-box");
@@ -241,6 +237,7 @@
       });
     }
 
+    // 发送消息
     function sendMessage() {
       const input = document.getElementById("msg-input");
       const text = input.value.trim();
@@ -262,6 +259,7 @@
       document.getElementById("imgInput").value = "";
     }
 
+    // 回车发送
     document.getElementById("msg-input").addEventListener("keydown", e => {
       if (e.key === "Enter") sendMessage();
     });
