@@ -3,47 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>聊天管理面板</title>
+  <title>在线联系</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
     * {margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif;}
     body {max-width: 900px; margin: 20px auto; padding: 0 15px;}
     .container {display: flex; gap: 15px; height: 650px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden;}
-    /* 侧边栏：对话列表 */
-    .sidebar {width: 220px; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 10px;}
-    .sidebar h4 {padding: 10px; margin-bottom: 10px; color: #1e293b;}
-    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0;}
-    .conv-item.active {background: #dbeafe; border-color: #93c5fd;}
+    .sidebar {width: 220px; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 10px; display: none;}
+    .sidebar h4 {padding: 10px; margin-bottom: 10px; color: #1e293b; font-size: 16px;}
+    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0; font-size: 14px;}
+    .conv-item.active {background: #dbeafe; border-color: #3b82f6;}
     .conv-id {font-size: 12px; color: #64748b; margin-top: 4px;}
-    /* 聊天主区域 */
     .chat-main {flex: 1; display: flex; flex-direction: column; background: #fff;}
-    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500;}
+    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500; font-size: 16px;}
     #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa;}
     .msg {margin: 10px 0; padding: 9px 13px; border-radius: 12px; max-width: 82%; line-height: 1.5; word-wrap: break-word; position: relative;}
-    .msg small {display: block; font-size: 11px; margin-top: 4px; opacity: 0.7;}
+    .msg small {display: block; font-size: 11px; margin-top: 4px; opacity: 0.8;}
     .user {background: #2563eb; color: white; margin-left: auto; text-align: right;}
     .admin {background: #ffffff; border: 1px solid #e2e8f0; margin-right: auto; color: #1e293b;}
     .input-area {display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee;}
     input {flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px;}
-    button {padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;}
+    button {padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;}
     button:hover {background: #1d4ed8;}
     .tip {font-size: 13px; color: #666; margin: 10px 0; text-align: center;}
-    .guest-info {padding: 10px; background: #f1f5f9; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0;}
   </style>
 </head>
 <body>
   <div class="container" id="app-container">
     <!-- 管理员侧边栏 -->
-    <div class="sidebar" id="sidebar" style="display: none;">
-      <h4>对话列表</h4>
+    <div class="sidebar" id="sidebar">
+      <h4>访客对话列表</h4>
       <div id="conv-list"></div>
     </div>
-
     <!-- 聊天主区域 -->
     <div class="chat-main">
       <div class="header" id="page-title">在线联系</div>
-      <div class="guest-info" id="guest-info" style="display: none;"></div>
       <div id="chat-box"></div>
       <div class="input-area">
         <input type="text" id="msg-input" placeholder="输入消息...">
@@ -51,37 +46,35 @@
       </div>
     </div>
   </div>
-
   <div class="tip">
-    访客链接：当前页面<br>
+    访客入口：当前页面<br>
     管理员入口：链接后加 ?key=MySecurePass2026
   </div>
 
   <script>
-    // ===================== 配置区（已填好你的项目信息） =====================
+    // ========== 配置区 ==========
     const ADMIN_KEY = "MySecurePass2026";     // 管理员密码，可自行修改
-    const MAX_KEEP_DAYS = 7;                  // 消息保留天数
+    const MAX_KEEP_DAYS = 7;                  // 消息自动保留天数
     const firebaseConfig = {
       apiKey: "AIzaSyCKdyYzaPpl92RjFQQmI8oLZxJAOTXZ7p4",
       authDomain: "lifengshou99999.firebaseapp.com",
       databaseURL: "https://lifengshou99999-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "lifengshou99999",
-      storageBucket: "lifengshou99999.firebasestorage.app",
       messagingSenderId: "356014471592",
       appId: "1:356014471592:web:e01d2ce14cd2a93a42859d"
     };
-    // ==================================================
+    // ===========================
 
     // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 检测身份
+    // 判断身份
     const urlParams = new URLSearchParams(window.location.search);
     const isAdmin = urlParams.get("key") === ADMIN_KEY;
     let currentConvId = null;
 
-    // 访客端：自动生成独立对话ID
+    // 访客模式：生成/读取对话ID
     if (!isAdmin) {
       currentConvId = localStorage.getItem("conv_id");
       if (!currentConvId) {
@@ -90,25 +83,23 @@
       }
     }
 
-    // 更新界面
-    document.getElementById("page-title").textContent = isAdmin ? "聊天管理面板" : "在线联系";
+    // 调整界面
+    document.getElementById("page-title").textContent = isAdmin ? "客服管理后台" : "在线联系";
     if (isAdmin) document.getElementById("sidebar").style.display = "block";
 
-    // 清理过期消息
+    // 自动清理过期消息
     function cleanOldMessages() {
       const cutoff = Date.now() - MAX_KEEP_DAYS * 24 * 60 * 60 * 1000;
       db.ref("chats").once("value", snapshot => {
         snapshot.forEach(convSnap => {
-          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).once("value", msgs => {
-            msgs.forEach(msg => msg.ref.remove());
-          });
+          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).remove();
         });
       });
     }
     cleanOldMessages();
-    setInterval(cleanOldMessages, 24 * 60 * 60 * 1000); // 每天执行一次
+    setInterval(cleanOldMessages, 86400000);
 
-    // 管理员：加载所有对话
+    // 管理员：加载所有对话列表
     function loadConversations() {
       if (!isAdmin) return;
       const listEl = document.getElementById("conv-list");
@@ -118,17 +109,16 @@
         snapshot.forEach(convSnap => {
           const convId = convSnap.key;
           const div = document.createElement("div");
-          div.className = "conv-item";
-          div.innerHTML = `访客对话<div class="conv-id">${convId.slice(0,12)}...</div>`;
-          div.onclick = () => switchConversation(convId);
-          if (convId === currentConvId) div.classList.add("active");
+          div.className = `conv-item ${convId === currentConvId ? "active" : ""}`;
+          div.innerHTML = `访客对话 <div class="conv-id">${convId.slice(5,13)}...</div>`;
+          div.onclick = () => switchConv(convId);
           listEl.appendChild(div);
         });
       });
     }
 
     // 切换对话
-    function switchConversation(convId) {
+    function switchConv(convId) {
       currentConvId = convId;
       document.getElementById("chat-box").innerHTML = "";
       document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
@@ -136,18 +126,18 @@
       loadMessages();
     }
 
-    // 加载消息
+    // 加载当前对话的消息
     function loadMessages() {
       if (!currentConvId) return;
       const box = document.getElementById("chat-box");
       const msgRef = db.ref(`chats/${currentConvId}/messages`);
-      msgRef.off();
+      msgRef.off("child_added");
       msgRef.on("child_added", snap => {
-        const data = snap.val();
+        const d = snap.val();
         const div = document.createElement("div");
-        div.className = `msg ${data.from}`;
-        const timeStr = new Date(data.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
-        div.innerHTML = `${data.text}<small>${timeStr}</small>`;
+        div.className = `msg ${d.from}`;
+        const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
+        div.innerHTML = `${d.text}<small>${time}</small>`;
         box.appendChild(div);
         box.scrollTop = box.scrollHeight;
       });
@@ -171,7 +161,7 @@
       if (e.key === "Enter") sendMessage();
     });
 
-    // 初始化运行
+    // 初始化执行
     if (isAdmin) {
       loadConversations();
     } else {
