@@ -7,135 +7,50 @@
     <link rel="stylesheet" href="https://cdn.staticfile.org/bootstrap/5.3.0/css/bootstrap.min.css">
     <script src="https://cdn.staticfile.org/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root {
-            --primary: #07c160;
-            --dark: #1f2937;
-            --light: #f8fafc;
-            --gray: #6b7280;
-        }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background-color: #f5f7fa;
-            font-family: system-ui, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-        }
-        .dashboard {
-            max-width: 680px;
-            margin: 2.5rem auto;
-            padding: 0 1.2rem;
-        }
-        .page-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .page-header h2 {
-            color: var(--dark);
-            font-weight: 600;
-        }
-        .page-header p {
-            color: var(--gray);
-            margin-top: 0.5rem;
-        }
-        .card {
-            background: #fff;
-            border-radius: 16px;
-            border: none;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
-            margin-bottom: 1.8rem;
-            overflow: hidden;
-        }
-        .card-header {
-            padding: 1.2rem 1.5rem;
-            background: #fff;
-            border-bottom: 1px solid #f0f2f5;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--dark);
-        }
-        .card-body {
-            padding: 1.8rem 1.5rem;
-            text-align: center;
-        }
-        .wx-id-display {
-            font-size: 1.15rem;
-            font-weight: 500;
-            color: var(--dark);
-            margin-bottom: 1.5rem;
-            padding: 0.8rem;
-            background: var(--light);
-            border-radius: 8px;
-            display: inline-block;
-            min-width: 220px;
-        }
-        .btn-main {
-            width: 100%;
-            padding: 1rem;
-            font-size: 1.1rem;
-            font-weight: 500;
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-bottom: 1.8rem;
-        }
-        .btn-main:hover {
-            background: #06ad56;
-        }
-        #qrcode {
-            margin: 0 auto;
-            width: 170px;
-            height: 170px;
-        }
-        .tip-text {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            color: var(--gray);
-            line-height: 1.6;
-        }
-        .notes {
-            font-size: 0.88rem;
-            color: var(--gray);
-            line-height: 1.8;
-            text-align: left;
-        }
+        :root {--primary: #07c160; --dark: #1f2937; --light: #f8fafc; --gray: #6b7280;}
+        body {background: #f5f7fa; font-family: system-ui, "PingFang SC", "Microsoft YaHei";}
+        .dashboard {max-width: 680px; margin: 2.5rem auto; padding: 0 1.2rem;}
+        .card {background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.07); margin-bottom: 1.8rem;}
+        .card-header {padding: 1.2rem 1.5rem; border-bottom: 1px solid #f0f2f5; font-weight: 600;}
+        .card-body {padding: 1.8rem 1.5rem; text-align: center;}
+        .wx-id {font-size: 1.15rem; font-weight: 500; background: #f0fdf4; padding: .8rem; border-radius: 8px; display: inline-block; margin-bottom: 1.5rem;}
+        .btn-main {width: 100%; padding: 1rem; font-size: 1.1rem; background: var(--primary); color: #fff; border: none; border-radius: 10px; margin-bottom: 1.8rem;}
+        #qrcode {margin: 0 auto; width: 170px; height: 170px;}
+        .tip {font-size: .9rem; color: var(--gray); margin-top: 1rem;}
     </style>
 </head>
 <body>
     <div class="dashboard">
-        <div class="page-header">
-            <h2>💬 微信联系面板</h2>
-            <p>访问此链接即可联系我，无需注册、无需复杂操作</p>
+        <div class="text-center mb-4">
+            <h2>💬 微信联系我</h2>
+            <p class="text-muted">复制ID或扫码 → 打开微信即可聊天</p>
         </div>
 
         <div class="card">
-            <div class="card-header">我的微信</div>
+            <div class="card-header">我的微信号</div>
             <div class="card-body">
-                <div class="wx-id-display">微信号：wxid_ybai3aviwlen22</div>
+                <div class="wx-id">wxid_ybai3aviwlen22</div>
 
-                <button class="btn-main" onclick="copyAndOpenWechat()">
-                    📋 复制微信号 + 打开微信
-                </button>
+                <button class="btn-main" onclick="copyWx()">📋 一键复制微信号</button>
 
+                <!-- 改成网页二维码，不再用协议链接 -->
                 <div id="qrcode"></div>
-                <p class="tip-text">📱 手机微信直接扫码<br>扫码后即可发起聊天</p>
+                <p class="tip">📱 微信扫码：打开此联系页面<br>然后复制ID搜索添加</p>
 
-                <a href="weixin://" class="d-block mt-3 text-decoration-none text-success fw-medium">备用：直接打开微信App</a>
+                <div class="alert alert-success mt-3">
+                    ✅ 稳定方式：复制ID → 微信 → 右上角+ → 添加朋友 → 粘贴搜索
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-header">ℹ️ 使用方式</div>
-            <div class="card-body notes">
+            <div class="card-header">ℹ️ 正确操作步骤</div>
+            <div class="card-body text-start small text-muted">
                 <ul>
-                    <li><strong>手机端：</strong>点击按钮自动复制微信号并尝试打开微信；也可以直接用微信扫码进入聊天</li>
-                    <li><strong>电脑端：</strong>扫码或复制微信号 → 打开微信 → 粘贴搜索即可添加聊天</li>
-                    <li><strong>国内访问：</strong>使用国内CDN，加载快、网络稳定</li>
-                    <li><strong>永久可用：</strong>纯静态页面，上传到平台即可长期使用</li>
+                    <li><strong>手机浏览器打开：</strong>点“复制” → 自动复制 → 打开微信粘贴搜索</li>
+                    <li><strong>微信内扫码：</strong>打开这个页面 → 再复制ID去搜索</li>
+                    <li><strong>电脑端：</strong>扫码打开页面 → 复制ID → 电脑微信添加</li>
+                    <li><strong>说明：</strong>微信没有开放“扫码直接进私聊”的功能，这是官方限制，不是你的代码问题</li>
                 </ul>
             </div>
         </div>
@@ -143,24 +58,19 @@
 
     <script>
         const WX_ID = "wxid_ybai3aviwlen22";
-        const WX_LINK = "weixin://dl/chat?username=" + WX_ID;
+        // ✅ 关键修复：二维码放你的网页链接，不是协议链接
+        const PAGE_URL = window.location.href || "https://你的用户名.gitee.io/你的仓库名/";
 
         new QRCode(document.getElementById("qrcode"), {
-            text: WX_LINK,
+            text: PAGE_URL,
             width: 170,
-            height: 170,
-            correctLevel: QRCode.CorrectLevel.L
+            height: 170
         });
 
-        function copyAndOpenWechat() {
+        function copyWx() {
             navigator.clipboard.writeText(WX_ID)
-                .then(() => {
-                    alert("✅ 微信号已复制成功！\n正在尝试打开微信...\n如果没有自动跳转，手动打开微信粘贴搜索即可");
-                    window.location.href = WX_LINK;
-                })
-                .catch(() => {
-                    prompt("请手动复制下面的微信号：", WX_ID);
-                });
+                .then(() => alert("✅ 微信号已复制！打开微信 → 右上角+ → 添加朋友 → 粘贴即可"))
+                .catch(() => prompt("手动复制微信号：", WX_ID));
         }
     </script>
 </body>
