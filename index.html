@@ -1,77 +1,182 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微信联系面板</title>
-    <link rel="stylesheet" href="https://cdn.staticfile.org/bootstrap/5.3.0/css/bootstrap.min.css">
-    <script src="https://cdn.staticfile.org/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <style>
-        :root {--primary: #07c160; --dark: #1f2937; --light: #f8fafc; --gray: #6b7280;}
-        body {background: #f5f7fa; font-family: system-ui, "PingFang SC", "Microsoft YaHei";}
-        .dashboard {max-width: 680px; margin: 2.5rem auto; padding: 0 1.2rem;}
-        .card {background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.07); margin-bottom: 1.8rem;}
-        .card-header {padding: 1.2rem 1.5rem; border-bottom: 1px solid #f0f2f5; font-weight: 600;}
-        .card-body {padding: 1.8rem 1.5rem; text-align: center;}
-        .wx-id {font-size: 1.15rem; font-weight: 500; background: #f0fdf4; padding: .8rem; border-radius: 8px; display: inline-block; margin-bottom: 1.5rem;}
-        .btn-main {width: 100%; padding: 1rem; font-size: 1.1rem; background: var(--primary); color: #fff; border: none; border-radius: 10px; margin-bottom: 1.8rem;}
-        #qrcode {margin: 0 auto; width: 170px; height: 170px;}
-        .tip {font-size: .9rem; color: var(--gray); margin-top: 1rem;}
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聊天管理面板</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    * {margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif;}
+    body {max-width: 900px; margin: 20px auto; padding: 0 15px;}
+    .container {display: flex; gap: 15px; height: 650px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden;}
+    /* 侧边栏：对话列表 */
+    .sidebar {width: 220px; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 10px;}
+    .sidebar h4 {padding: 10px; margin-bottom: 10px; color: #1e293b;}
+    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0;}
+    .conv-item.active {background: #dbeafe; border-color: #93c5fd;}
+    .conv-id {font-size: 12px; color: #64748b; margin-top: 4px;}
+    /* 聊天主区域 */
+    .chat-main {flex: 1; display: flex; flex-direction: column; background: #fff;}
+    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500;}
+    #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa;}
+    .msg {margin: 10px 0; padding: 9px 13px; border-radius: 12px; max-width: 82%; line-height: 1.5; word-wrap: break-word; position: relative;}
+    .msg small {display: block; font-size: 11px; margin-top: 4px; opacity: 0.7;}
+    .user {background: #2563eb; color: white; margin-left: auto; text-align: right;}
+    .admin {background: #ffffff; border: 1px solid #e2e8f0; margin-right: auto; color: #1e293b;}
+    .input-area {display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee;}
+    input {flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px;}
+    button {padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;}
+    button:hover {background: #1d4ed8;}
+    .tip {font-size: 13px; color: #666; margin: 10px 0; text-align: center;}
+    .guest-info {padding: 10px; background: #f1f5f9; font-size: 13px; color: #475569; border-bottom: 1px solid #e2e8f0;}
+  </style>
 </head>
 <body>
-    <div class="dashboard">
-        <div class="text-center mb-4">
-            <h2>💬 微信联系我</h2>
-            <p class="text-muted">复制ID或扫码 → 打开微信即可聊天</p>
-        </div>
-
-        <div class="card">
-            <div class="card-header">我的微信号</div>
-            <div class="card-body">
-                <div class="wx-id">wxid_ybai3aviwlen22</div>
-
-                <button class="btn-main" onclick="copyWx()">📋 一键复制微信号</button>
-
-                <!-- 改成网页二维码，不再用协议链接 -->
-                <div id="qrcode"></div>
-                <p class="tip">📱 微信扫码：打开此联系页面<br>然后复制ID搜索添加</p>
-
-                <div class="alert alert-success mt-3">
-                    ✅ 稳定方式：复制ID → 微信 → 右上角+ → 添加朋友 → 粘贴搜索
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">ℹ️ 正确操作步骤</div>
-            <div class="card-body text-start small text-muted">
-                <ul>
-                    <li><strong>手机浏览器打开：</strong>点“复制” → 自动复制 → 打开微信粘贴搜索</li>
-                    <li><strong>微信内扫码：</strong>打开这个页面 → 再复制ID去搜索</li>
-                    <li><strong>电脑端：</strong>扫码打开页面 → 复制ID → 电脑微信添加</li>
-                    <li><strong>说明：</strong>微信没有开放“扫码直接进私聊”的功能，这是官方限制，不是你的代码问题</li>
-                </ul>
-            </div>
-        </div>
+  <div class="container" id="app-container">
+    <!-- 管理员侧边栏 -->
+    <div class="sidebar" id="sidebar" style="display: none;">
+      <h4>对话列表</h4>
+      <div id="conv-list"></div>
     </div>
 
-    <script>
-        const WX_ID = "wxid_ybai3aviwlen22";
-        // ✅ 关键修复：二维码放你的网页链接，不是协议链接
-        const PAGE_URL = window.location.href || "https://你的用户名.gitee.io/你的仓库名/";
+    <!-- 聊天主区域 -->
+    <div class="chat-main">
+      <div class="header" id="page-title">在线联系</div>
+      <div class="guest-info" id="guest-info" style="display: none;"></div>
+      <div id="chat-box"></div>
+      <div class="input-area">
+        <input type="text" id="msg-input" placeholder="输入消息...">
+        <button onclick="sendMessage()">发送</button>
+      </div>
+    </div>
+  </div>
 
-        new QRCode(document.getElementById("qrcode"), {
-            text: PAGE_URL,
-            width: 170,
-            height: 170
+  <div class="tip">
+    访客链接：当前页面<br>
+    管理员入口：链接后加 ?key=你的密钥
+  </div>
+
+  <script>
+    // ===================== 配置区（请自行修改） =====================
+    const ADMIN_KEY = "MySecurePass2026";     // 管理员登录密钥
+    const MAX_KEEP_DAYS = 7;                  // 消息保留天数，超时自动删除
+    const firebaseConfig = {
+      apiKey: "你的apiKey",
+      authDomain: "你的项目id.firebaseapp.com",
+      databaseURL: "你的数据库地址",
+      projectId: "你的项目id",
+      storageBucket: "你的存储桶",
+      messagingSenderId: "你的发送id",
+      appId: "你的应用id"
+    };
+    // ===============================================================
+
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 检测身份
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get("key") === ADMIN_KEY;
+    let currentConvId = null;
+
+    // 访客端：自动生成独立对话ID
+    if (!isAdmin) {
+      currentConvId = localStorage.getItem("conv_id");
+      if (!currentConvId) {
+        currentConvId = "conv_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+        localStorage.setItem("conv_id", currentConvId);
+      }
+    }
+
+    // 更新界面
+    document.getElementById("page-title").textContent = isAdmin ? "聊天管理面板" : "在线联系";
+    if (isAdmin) document.getElementById("sidebar").style.display = "block";
+
+    // 清理过期消息
+    function cleanOldMessages() {
+      const cutoff = Date.now() - MAX_KEEP_DAYS * 24 * 60 * 60 * 1000;
+      db.ref("chats").once("value", snapshot => {
+        snapshot.forEach(convSnap => {
+          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).once("value", msgs => {
+            msgs.forEach(msg => msg.ref.remove());
+          });
         });
+      });
+    }
+    cleanOldMessages();
+    setInterval(cleanOldMessages, 24 * 60 * 60 * 1000); // 每天执行一次
 
-        function copyWx() {
-            navigator.clipboard.writeText(WX_ID)
-                .then(() => alert("✅ 微信号已复制！打开微信 → 右上角+ → 添加朋友 → 粘贴即可"))
-                .catch(() => prompt("手动复制微信号：", WX_ID));
-        }
-    </script>
+    // 管理员：加载所有对话
+    function loadConversations() {
+      if (!isAdmin) return;
+      const listEl = document.getElementById("conv-list");
+      listEl.innerHTML = "";
+      db.ref("chats").on("value", snapshot => {
+        listEl.innerHTML = "";
+        snapshot.forEach(convSnap => {
+          const convId = convSnap.key;
+          const div = document.createElement("div");
+          div.className = "conv-item";
+          div.innerHTML = `访客对话<div class="conv-id">${convId.slice(0,12)}...</div>`;
+          div.onclick = () => switchConversation(convId);
+          if (convId === currentConvId) div.classList.add("active");
+          listEl.appendChild(div);
+        });
+      });
+    }
+
+    // 切换对话
+    function switchConversation(convId) {
+      currentConvId = convId;
+      document.getElementById("chat-box").innerHTML = "";
+      document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
+      event.currentTarget.classList.add("active");
+      loadMessages();
+    }
+
+    // 加载消息
+    function loadMessages() {
+      if (!currentConvId) return;
+      const box = document.getElementById("chat-box");
+      const msgRef = db.ref(`chats/${currentConvId}/messages`);
+      msgRef.off();
+      msgRef.on("child_added", snap => {
+        const data = snap.val();
+        const div = document.createElement("div");
+        div.className = `msg ${data.from}`;
+        const timeStr = new Date(data.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
+        div.innerHTML = `${data.text}<small>${timeStr}</small>`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+      });
+    }
+
+    // 发送消息
+    function sendMessage() {
+      const input = document.getElementById("msg-input");
+      const text = input.value.trim();
+      if (!text || !currentConvId) return;
+      db.ref(`chats/${currentConvId}/messages`).push({
+        from: isAdmin ? "admin" : "user",
+        text: text,
+        time: Date.now()
+      });
+      input.value = "";
+    }
+
+    // 回车发送
+    document.getElementById("msg-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    // 初始化运行
+    if (isAdmin) {
+      loadConversations();
+    } else {
+      loadMessages();
+    }
+  </script>
 </body>
 </html>
