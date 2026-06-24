@@ -22,7 +22,7 @@
     #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa;}
     .msg {margin: 10px 0; padding: 9px 13px; border-radius: 12px; max-width: 85%; line-height: 1.5; word-wrap: break-word;}
     .msg small {display: block; font-size: 11px; margin-top: 6px; opacity: 0.8;}
-    .msg-img {max-width: 100%; max-height: 240px; border-radius: 8px; cursor: pointer; margin-bottom: 6px;}
+    .msg-img {max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; object-fit: contain; background: #f1f5f9;}
     .user {background: #2563eb; color: white; margin-left: auto; text-align: right;}
     .admin {background: #ffffff; border: 1px solid #e2e8f0; margin-right: auto; color: #1e293b;}
     .input-area {display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee; flex-wrap: wrap;}
@@ -33,15 +33,19 @@
     button {padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;}
     button:hover {background: #1d4ed8;}
     .tip {font-size: 13px; color: #666; margin: 10px 0; text-align: center;}
-    .preview-img {max-height: 60px; border-radius: 4px; margin-left: 8px; border: 1px solid #ddd;}
+    .preview-img {max-height: 60px; border-radius: 4px; margin-left: 8px; border: 1px solid #ddd; object-fit: contain;}
     .modal {position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999;}
     .modal-content {background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 360px;}
     .modal-content h3 {margin-bottom: 15px; color: #1e293b;}
     .modal-content input {width: 100%; margin-bottom: 12px;}
     .hidden {display: none !important;}
+    /* 图片放大弹窗 */
+    #imgZoomModal {position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; cursor:pointer;}
+    #imgZoomModal img {max-width:90%; max-height:90%; border-radius:8px;}
   </style>
 </head>
 <body>
+  <!-- 注册弹窗 -->
   <div id="registerModal" class="modal hidden">
     <div class="modal-content">
       <h3>请先填写您的信息</h3>
@@ -49,6 +53,11 @@
       <input type="text" id="contact" placeholder="联系方式（可选）">
       <button onclick="submitRegister()" style="width:100%;">进入聊天</button>
     </div>
+  </div>
+
+  <!-- 图片放大弹窗 -->
+  <div id="imgZoomModal" class="hidden" onclick="this.classList.add('hidden')">
+    <img id="zoomImg" src="" alt="放大图片">
   </div>
 
   <div class="container" id="app-container">
@@ -61,7 +70,7 @@
       <div id="chat-box"></div>
       <div class="input-area">
         <label for="imgInput" class="icon-btn">📎</label>
-        <input type="file" id="imgInput" accept="image/*">
+        <input type="file" id="imgInput" accept="image/png,image/jpeg,image/gif,image/webp">
         <div id="previewArea" style="display: flex; align-items: center;"></div>
         <div class="input-row">
           <input type="text" id="msg-input" placeholder="输入消息...">
@@ -78,6 +87,7 @@
 
   <script>
     const ADMIN_KEY = "MySecurePass2026";
+    const MAX_IMG_SIZE = 600 * 1024; // 限制图片最大600KB，避免base64过长
     const firebaseConfig = {
       apiKey: "AIzaSyCKdyYzaPpl92RjFQQmI8oLZxJAOTXZ7p4",
       authDomain: "lifengshou99999.firebaseapp.com",
@@ -130,9 +140,13 @@
       loadMessages();
     }
 
+    // 压缩+预览图片
     document.getElementById("imgInput").addEventListener("change", e => {
       const file = e.target.files[0];
       if (!file) return;
+      if (file.size > MAX_IMG_SIZE) {
+        return alert(`图片太大！请选择小于${MAX_IMG_SIZE/1024}KB的图片`);
+      }
       const reader = new FileReader();
       reader.onload = ev => {
         selectedImageBase64 = ev.target.result;
@@ -164,14 +178,6 @@
         document.getElementById("totalUnread").textContent = total;
         document.getElementById("totalUnread").classList.toggle("hidden", total === 0);
       });
-
-      db.ref("chats").on("child_changed", snap => {
-        const convId = snap.key;
-        if (convId !== currentConvId) {
-          unreadCount[convId] = (unreadCount[convId] || 0) + 1;
-          loadConversations();
-        }
-      });
     }
 
     function switchConv(convId) {
@@ -194,13 +200,22 @@
         div.className = `msg ${d.from}`;
         const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
         let content = "";
-        if (d.image) content += `<img src="${d.image}" class="msg-img" alt="图片">`;
-        if (d.text) content += `<div>${d.text}</div>`;
+        if (d.image) {
+          content += `<img src="${d.image}" class="msg-img" alt="图片" loading="lazy" onerror="this.outerHTML='<div style=\"padding:10px; color:#888; background:#f1f5f9; border-radius:8px;\">图片加载失败</div>'" onclick="zoomImage('${d.image.replace(/'/g, "\\'")}')">`;
+        }
+        if (d.text) {
+          content += `<div style="margin-top:${d.image ? '8px' : '0'};">${d.text}</div>`;
+        }
         content += `<small>${time}</small>`;
         div.innerHTML = content;
         box.appendChild(div);
         box.scrollTop = box.scrollHeight;
       });
+    }
+
+    function zoomImage(src) {
+      document.getElementById("zoomImg").src = src;
+      document.getElementById("imgZoomModal").classList.remove("hidden");
     }
 
     function sendMessage() {
