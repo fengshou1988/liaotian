@@ -31,12 +31,10 @@
 </head>
 <body>
   <div class="container" id="app-container">
-    <!-- 管理员侧边栏 -->
     <div class="sidebar" id="sidebar">
       <h4>访客对话列表</h4>
       <div id="conv-list"></div>
     </div>
-    <!-- 聊天主区域 -->
     <div class="chat-main">
       <div class="header" id="page-title">在线联系</div>
       <div id="chat-box"></div>
@@ -52,9 +50,8 @@
   </div>
 
   <script>
-    // ========== 配置区 ==========
-    const ADMIN_KEY = "MySecurePass2026";     // 管理员密码，可自行修改
-    const MAX_KEEP_DAYS = 7;                  // 消息自动保留天数
+    const ADMIN_KEY = "MySecurePass2026";
+    const MAX_KEEP_DAYS = 7;
     const firebaseConfig = {
       apiKey: "AIzaSyCKdyYzaPpl92RjFQQmI8oLZxJAOTXZ7p4",
       authDomain: "lifengshou99999.firebaseapp.com",
@@ -63,18 +60,14 @@
       messagingSenderId: "356014471592",
       appId: "1:356014471592:web:e01d2ce14cd2a93a42859d"
     };
-    // ===========================
 
-    // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 判断身份
     const urlParams = new URLSearchParams(window.location.search);
     const isAdmin = urlParams.get("key") === ADMIN_KEY;
     let currentConvId = null;
 
-    // 访客模式：生成/读取对话ID
     if (!isAdmin) {
       currentConvId = localStorage.getItem("conv_id");
       if (!currentConvId) {
@@ -83,23 +76,23 @@
       }
     }
 
-    // 调整界面
     document.getElementById("page-title").textContent = isAdmin ? "客服管理后台" : "在线联系";
     if (isAdmin) document.getElementById("sidebar").style.display = "block";
 
-    // 自动清理过期消息
+    // 修复后的自动清理消息
     function cleanOldMessages() {
       const cutoff = Date.now() - MAX_KEEP_DAYS * 24 * 60 * 60 * 1000;
       db.ref("chats").once("value", snapshot => {
         snapshot.forEach(convSnap => {
-          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).remove();
+          convSnap.ref.child("messages").orderByChild("time").endAt(cutoff).once("value", msgsSnap => {
+            msgsSnap.forEach(msg => msg.ref.remove());
+          });
         });
       });
     }
     cleanOldMessages();
     setInterval(cleanOldMessages, 86400000);
 
-    // 管理员：加载所有对话列表
     function loadConversations() {
       if (!isAdmin) return;
       const listEl = document.getElementById("conv-list");
@@ -117,7 +110,6 @@
       });
     }
 
-    // 切换对话
     function switchConv(convId) {
       currentConvId = convId;
       document.getElementById("chat-box").innerHTML = "";
@@ -126,7 +118,6 @@
       loadMessages();
     }
 
-    // 加载当前对话的消息
     function loadMessages() {
       if (!currentConvId) return;
       const box = document.getElementById("chat-box");
@@ -143,7 +134,6 @@
       });
     }
 
-    // 发送消息
     function sendMessage() {
       const input = document.getElementById("msg-input");
       const text = input.value.trim();
@@ -156,12 +146,10 @@
       input.value = "";
     }
 
-    // 回车发送
     document.getElementById("msg-input").addEventListener("keydown", e => {
       if (e.key === "Enter") sendMessage();
     });
 
-    // 初始化执行
     if (isAdmin) {
       loadConversations();
     } else {
