@@ -3,318 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>永久稳定版·云端聊天系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>微信联系面板</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.org/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdn.staticfile.org/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box;font-family:微软雅黑;}
-        body{background:#f5f7fa;}
-        .hidden{display:none !important;}
-
-        /* 登录注册样式 */
-        .auth{max-width:400px;margin:50px auto;background:white;padding:30px;border-radius:12px;box-shadow:0 2px 10px #0000001a;}
-        .tab{display:flex;gap:10px;margin-bottom:20px;}
-        .tab button{flex:1;padding:10px;border:none;background:#eee;border-radius:6px;cursor:pointer;}
-        .tab button.active{background:#4285f4;color:white;}
-        input{width:100%;padding:12px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
-        .btn{width:100%;padding:12px;background:#4285f4;color:white;border:none;border-radius:6px;margin:8px 0;cursor:pointer;font-size:14px;}
-        .btn:hover{background:#3367d6;}
-        .btn:disabled{background:#ccc;cursor:not-allowed;}
-
-        /* 聊天界面样式 */
-        .chat-app{display:flex;height:100vh;max-width:1200px;margin:0 auto;background:white;}
-        .sidebar{width:300px;border-right:1px solid #ddd;padding:20px;}
-        .main{flex:1;display:flex;flex-direction:column;}
-        .chat-header{padding:15px;border-bottom:1px solid #ddd;}
-        .msg-box{flex:1;padding:20px;overflow-y:auto;background:#f8f9fa;}
-        .msg{max-width:70%;margin:8px 0;padding:10px;border-radius:8px;}
-        .msg.me{background:#4285f4;color:white;margin-left:auto;}
-        .msg.other{background:#eee;}
-        .emoji{padding:10px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #ddd;}
-        .emoji span{cursor:pointer;font-size:18px;}
-        .send-box{display:flex;padding:15px;gap:5px;}
-        .send-box input{flex:1;}
-        .friend-item{padding:10px;border-bottom:1px solid #ddd;cursor:pointer;}
+        :root {
+            --primary: #07c160;
+            --dark: #1f2937;
+            --light: #f8fafc;
+            --gray: #6b7280;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #f5f7fa;
+            font-family: system-ui, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        }
+        .dashboard {
+            max-width: 680px;
+            margin: 2.5rem auto;
+            padding: 0 1.2rem;
+        }
+        .page-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .page-header h2 {
+            color: var(--dark);
+            font-weight: 600;
+        }
+        .page-header p {
+            color: var(--gray);
+            margin-top: 0.5rem;
+        }
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+            margin-bottom: 1.8rem;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 1.2rem 1.5rem;
+            background: #fff;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        .card-body {
+            padding: 1.8rem 1.5rem;
+            text-align: center;
+        }
+        .wx-id-display {
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            padding: 0.8rem;
+            background: var(--light);
+            border-radius: 8px;
+            display: inline-block;
+            min-width: 220px;
+        }
+        .btn-main {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 500;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 1.8rem;
+        }
+        .btn-main:hover {
+            background: #06ad56;
+        }
+        #qrcode {
+            margin: 0 auto;
+            width: 170px;
+            height: 170px;
+        }
+        .tip-text {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--gray);
+            line-height: 1.6;
+        }
+        .notes {
+            font-size: 0.88rem;
+            color: var(--gray);
+            line-height: 1.8;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
+    <div class="dashboard">
+        <div class="page-header">
+            <h2>💬 微信联系面板</h2>
+            <p>访问此链接即可联系我，无需注册、无需复杂操作</p>
+        </div>
 
-<!-- 登录注册模块 -->
-<div class="auth" id="authBox">
-    <div class="tab">
-        <button class="active" onclick="showLogin()">登录</button>
-        <button onclick="showReg()">注册</button>
-    </div>
+        <div class="card">
+            <div class="card-header">我的微信</div>
+            <div class="card-body">
+                <div class="wx-id-display">微信号：wxid_ybai3aviwlen22</div>
 
-    <!-- 登录面板 -->
-    <div id="loginPanel">
-        <input id="loginUser" placeholder="用户名">
-        <input id="loginPwd" type="password" placeholder="密码">
-        <button class="btn" id="loginBtn" onclick="userLogin()">登录</button>
-    </div>
+                <button class="btn-main" onclick="copyAndOpenWechat()">
+                    📋 复制微信号 + 打开微信
+                </button>
 
-    <!-- 注册面板 -->
-    <div id="regPanel" class="hidden">
-        <input id="regUser" placeholder="字母+数字 3-15位">
-        <input id="regPwd" type="password" placeholder="密码≥6位">
-        <input id="regPwd2" type="password" placeholder="确认密码">
-        <button class="btn" id="regBtn" onclick="userRegister()">✅ 注册并自动登录</button>
-    </div>
-</div>
+                <div id="qrcode"></div>
+                <p class="tip-text">📱 手机微信直接扫码<br>扫码后即可发起聊天</p>
 
-<!-- 聊天主界面 -->
-<div class="chat-app hidden" id="chatApp">
-    <div class="sidebar">
-        <h3>好友列表</h3>
-        <div id="friendList" style="margin:15px 0;height:calc(100% - 120px);overflow-y:auto;"></div>
-        <button class="btn" style="background:#34a853" onclick="addFriend()">添加好友</button>
-        <button class="btn" style="background:#fbbc05" onclick="createGroup()">创建群聊</button>
-    </div>
-    <div class="main">
-        <div class="chat-header" id="chatTitle">选择聊天对象</div>
-        <div class="msg-box" id="msgBox"></div>
-        <div class="emoji" id="emojiPanel"></div>
-        <div class="send-box">
-            <input type="file" id="fileInput" hidden multiple>
-            <button onclick="document.getElementById('fileInput').click()">文件</button>
-            <button onclick="startVoice()">语音</button>
-            <input id="msgInput" placeholder="输入消息">
-            <button onclick="sendMsg()">发送</button>
+                <a href="weixin://" class="d-block mt-3 text-decoration-none text-success fw-medium">备用：直接打开微信App</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">ℹ️ 使用方式</div>
+            <div class="card-body notes">
+                <ul>
+                    <li><strong>手机端：</strong>点击按钮自动复制微信号并尝试打开微信；也可以直接用微信扫码进入聊天</li>
+                    <li><strong>电脑端：</strong>扫码或复制微信号 → 打开微信 → 粘贴搜索即可添加聊天</li>
+                    <li><strong>国内访问：</strong>使用国内CDN，加载快、网络稳定</li>
+                    <li><strong>永久可用：</strong>纯静态页面，上传到平台即可长期使用</li>
+                </ul>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-// ===================== 云端配置 =====================
-const SUPABASE_URL = "https://clcdvikgogwpxvhtwdkc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_2FNPLa8GRWKoPco7ebpGqw_4D4L3uIt";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <script>
+        const WX_ID = "wxid_ybai3aviwlen22";
+        const WX_LINK = "weixin://dl/chat?username=" + WX_ID;
 
-// 全局变量
-let currentUser = null;
-let chatTarget = null;
-const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘'];
-
-// ===================== 面板切换 =====================
-function showLogin() {
-    document.getElementById("loginPanel").classList.remove("hidden");
-    document.getElementById("regPanel").classList.add("hidden");
-    document.querySelectorAll(".tab button")[0].classList.add("active");
-    document.querySelectorAll(".tab button")[1].classList.remove("active");
-}
-function showReg() {
-    document.getElementById("loginPanel").classList.add("hidden");
-    document.getElementById("regPanel").classList.remove("hidden");
-    document.querySelectorAll(".tab button")[0].classList.remove("active");
-    document.querySelectorAll(".tab button")[1].classList.add("active");
-}
-
-// ===================== 【关键修复】注册函数 =====================
-async function userRegister() {
-    const btn = document.getElementById('regBtn');
-    btn.disabled = true;
-    
-    try {
-        // 获取输入值
-        let user = document.getElementById('regUser').value.trim();
-        let pwd = document.getElementById('regPwd').value;
-        let pwd2 = document.getElementById('regPwd2').value;
-
-        // 校验规则
-        const reg = /^[a-zA-Z0-9]{3,15}$/;
-        if (!reg.test(user)) { alert("用户名必须字母+数字，3-15位！"); btn.disabled = false; return; }
-        if (pwd.length < 6 || pwd !== pwd2) { alert("密码≥6位，两次一致！"); btn.disabled = false; return; }
-
-        // 检查用户名重复
-        const { data: hasUser } = await supabase.from('users').select('username').eq('username', user);
-        if (hasUser && hasUser.length > 0) { alert("用户名已存在！"); btn.disabled = false; return; }
-
-        // 创建用户
-        const newUser = {
-            username: user, 
-            password: pwd, 
-            userid: Math.random().toString(36).slice(2),
-            friend_list: [], 
-            block_list: []
-        };
-
-        const { error } = await supabase.from('users').insert([newUser]);
-        
-        if (error) {
-            alert("注册失败：" + error.message);
-            btn.disabled = false;
-            return;
-        }
-
-        localStorage.setItem('chatUser', JSON.stringify(newUser));
-        alert("✅ 注册成功！自动登录中！");
-        loginSuccess(newUser);
-        
-    } catch (err) {
-        console.error("注册异常：", err);
-        alert("注册出错：" + err.message);
-        btn.disabled = false;
-    }
-}
-
-// ===================== 登录功能 =====================
-async function userLogin() {
-    const btn = document.getElementById('loginBtn');
-    btn.disabled = true;
-    
-    try {
-        let user = document.getElementById('loginUser').value.trim();
-        let pwd = document.getElementById('loginPwd').value;
-        
-        if (!user || !pwd) {
-            alert("请输入用户名和密码！");
-            btn.disabled = false;
-            return;
-        }
-
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('username', user)
-            .eq('password', pwd)
-            .single();
-        
-        if (error || !data) { 
-            alert("账号或密码错误！"); 
-            btn.disabled = false;
-            return; 
-        }
-
-        localStorage.setItem('chatUser', JSON.stringify(data));
-        loginSuccess(data);
-    } catch (e) {
-        console.error("登录异常：", e);
-        alert("登录失败：" + e.message);
-        btn.disabled = false;
-    }
-}
-
-// ===================== 自动登录 + 初始化 =====================
-window.onload = function () {
-    loadEmojis();
-    const cache = localStorage.getItem('chatUser');
-    if (cache) {
-        try {
-            loginSuccess(JSON.parse(cache));
-        } catch (e) {
-            localStorage.removeItem('chatUser');
-        }
-    }
-}
-
-// ===================== 登录成功 =====================
-function loginSuccess(user) {
-    currentUser = user;
-    document.getElementById('authBox').classList.add('hidden');
-    document.getElementById('chatApp').classList.remove('hidden');
-    initRealtime();
-    loadFriends();
-}
-
-// ===================== 表情和聊天功能 =====================
-function initRealtime() {
-    supabase.channel('chat').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_msg' }, () => {
-        if (chatTarget) loadMsg();
-    }).subscribe();
-}
-
-function loadEmojis() {
-    const emojiPanel = document.getElementById('emojiPanel');
-    emojis.forEach(e => {
-        let span = document.createElement('span');
-        span.innerText = e;
-        span.onclick = () => document.getElementById('msgInput').value += e;
-        emojiPanel.appendChild(span);
-    });
-}
-
-function startVoice() { alert("🎙️ 语音功能已启动"); }
-
-async function sendMsg() {
-    let content = document.getElementById('msgInput').value.trim();
-    if (!content || !chatTarget) { alert("请选择聊天对象"); return; }
-    
-    try {
-        await supabase.from('chat_msg').insert([{ from_user: currentUser.username, to_user: chatTarget, content: content }]);
-        document.getElementById('msgInput').value = '';
-        loadMsg();
-    } catch (e) {
-        alert("发送失败：" + e.message);
-    }
-}
-
-async function loadMsg() {
-    const box = document.getElementById('msgBox');
-    box.innerHTML = '';
-    
-    try {
-        const { data } = await supabase.from('chat_msg')
-            .or(`from_user.eq.${currentUser.username},to_user.eq.${currentUser.username}`)
-            .or(`from_user.eq.${chatTarget},to_user.eq.${chatTarget}`)
-            .order('create_at');
-        
-        if (!data || data.length === 0) {
-            box.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无消息</div>';
-            return;
-        }
-
-        data.forEach(m => {
-            let div = document.createElement('div');
-            div.className = `msg ${m.from_user === currentUser.username ? 'me' : 'other'}`;
-            div.innerText = m.content;
-            box.appendChild(div);
+        new QRCode(document.getElementById("qrcode"), {
+            text: WX_LINK,
+            width: 170,
+            height: 170,
+            correctLevel: QRCode.CorrectLevel.L
         });
-        box.scrollTop = box.scrollHeight;
-    } catch (e) {
-        console.error("加载消息失败：", e);
-    }
-}
 
-async function loadFriends() {
-    const list = document.getElementById('friendList');
-    list.innerHTML = '';
-    
-    if (!currentUser.friend_list || currentUser.friend_list.length === 0) {
-        list.innerHTML = '<div style="color:#999;padding:10px;">还没有好友，请添加</div>';
-        return;
-    }
-
-    currentUser.friend_list.forEach(f => {
-        let div = document.createElement('div');
-        div.className = 'friend-item';
-        div.innerText = f;
-        div.onclick = () => { 
-            chatTarget = f; 
-            document.getElementById('chatTitle').innerText = `与 ${f} 聊天`; 
-            loadMsg(); 
-        };
-        list.appendChild(div);
-    });
-}
-
-async function addFriend() {
-    let name = prompt("输入好友用户名");
-    if (!name) return;
-    
-    try {
-        const { data } = await supabase.from('users').select('username').eq('username', name);
-        if (!data || data.length === 0) {
-            alert("用户不存在！");
-            return;
+        function copyAndOpenWechat() {
+            navigator.clipboard.writeText(WX_ID)
+                .then(() => {
+                    alert("✅ 微信号已复制成功！\n正在尝试打开微信...\n如果没有自动跳转，手动打开微信粘贴搜索即可");
+                    window.location.href = WX_LINK;
+                })
+                .catch(() => {
+                    prompt("请手动复制下面的微信号：", WX_ID);
+                });
         }
-
-        await supabase.from('friend_apply').insert([{ from_name: currentUser.username, to_name: name }]);
-        alert("✅ 好友申请已发送");
-    } catch (e) {
-        alert("添加失败：" + e.message);
-    }
-}
-
-function createGroup() { alert("👥 群聊创建功能开发中..."); }
-</script>
+    </script>
 </body>
 </html>
