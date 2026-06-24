@@ -28,10 +28,15 @@
     .chat-main {flex: 1; display: flex; flex-direction: column; background: #fff; min-width: 0;}
     .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500; font-size: 16px; flex-shrink: 0;}
     #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa; min-height: 0; scroll-behavior: smooth;}
-    /* 消息布局+头像 */
+    /* 消息布局 + 文字头像样式 */
     .msg {margin: 10px 0; display: flex; gap: 8px; max-width: 92%;}
-    .msg-avatar {width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: #e2e8f0; overflow: hidden;}
-    .msg-avatar img {width: 100%; height: 100%; object-fit: cover;}
+    .msg-avatar {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 500; color: #fff;
+    }
+    .avatar-admin {background: #2563eb;}
+    .avatar-user {background: #94a3b8;}
     .msg-bubble {padding: 9px 13px; border-radius: 12px; max-width: calc(100% - 44px); line-height: 1.5; word-wrap: break-word; position: relative;}
     .msg small {display: block; font-size: 11px; margin-top: 6px; opacity: 0.8;}
     .msg-img {max-width: 100%; max-height: 220px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; object-fit: contain; background: #f1f5f9;}
@@ -58,11 +63,13 @@
     .hidden {display: none !important;}
     #imgZoomModal {position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; cursor:pointer;}
     #zoomImg {max-width:90%; max-height:90%; border-radius:8px;}
-    /* 图片加载失败样式 */
     .img-error {padding: 12px; color: #666; background: #f1f5f9; border-radius: 8px; font-size: 13px; text-align: center;}
-    /* 对话列表头像 */
-    .conv-avatar {width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; background: #e2e8f0; overflow: hidden;}
-    .conv-avatar img {width: 100%; height: 100%; object-fit: cover;}
+    /* 对话列表文字头像 */
+    .conv-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 500; color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -119,23 +126,9 @@
 
   <script>
     const ADMIN_KEY = "MySecurePass2026";
-    const MAX_IMG_SIZE = 1024 * 1024; // 放宽到1MB
+    const MAX_IMG_SIZE = 1024 * 1024; // 1MB
     const PAGE_SIZE = 15;
     const AUTO_CLEAR_DAYS = 90;
-
-    // 管理员固定头像
-    const ADMIN_AVATAR = "https://picsum.photos/id/1027/200/200"; // 匹配你提供的证件照风格
-    // 访客随机头像池
-    const USER_AVATARS = [
-      "https://picsum.photos/id/1005/200/200",
-      "https://picsum.photos/id/1012/200/200",
-      "https://picsum.photos/id/1024/200/200",
-      "https://picsum.photos/id/1025/200/200",
-      "https://picsum.photos/id/1026/200/200",
-      "https://picsum.photos/id/1028/200/200",
-      "https://picsum.photos/id/1035/200/200",
-      "https://picsum.photos/id/1040/200/200"
-    ];
 
     const firebaseConfig = {
       apiKey: "AIzaSyCKdyYzaPpl92RjFQQmI8oLZxJAOTXZ7p4",
@@ -158,21 +151,11 @@
     let currentPage = 1;
     let lastUnreadKey = null;
 
-    // 保存访客的随机头像
-    function getRandomAvatar() {
-      return USER_AVATARS[Math.floor(Math.random() * USER_AVATARS.length)];
-    }
-
     if (!isAdmin) {
       const saved = localStorage.getItem("userInfo");
       if (!saved) {
         document.getElementById("registerModal").classList.remove("hidden");
       } else {
-        const user = JSON.parse(saved);
-        if (!user.avatar) {
-          user.avatar = getRandomAvatar();
-          localStorage.setItem("userInfo", JSON.stringify(user));
-        }
         currentConvId = localStorage.getItem("conv_id");
         loadMessages();
       }
@@ -194,8 +177,7 @@
       const userInfo = {
         nickname,
         contact: contact || "未填写",
-        joinTime: Date.now(),
-        avatar: getRandomAvatar()
+        joinTime: Date.now()
       };
       localStorage.setItem("conv_id", convId);
       localStorage.setItem("userInfo", JSON.stringify(userInfo));
@@ -238,7 +220,7 @@
         allConversations = [];
         snapshot.forEach(convSnap => {
           const convId = convSnap.key;
-          const info = convSnap.child("info").val() || { nickname: "访客", joinTime: 0, avatar: getRandomAvatar() };
+          const info = convSnap.child("info").val() || { nickname: "访客", joinTime: 0 };
           const lastMsg = convSnap.child("messages").val() || {};
           const lastTime = Object.values(lastMsg).pop()?.time || info.joinTime;
           allConversations.push({ convId, info, lastTime });
@@ -261,7 +243,7 @@
         const div = document.createElement("div");
         div.className = `conv-item ${convId === currentConvId ? "active" : ""}`;
         div.innerHTML = `
-          <div class="conv-avatar"><img src="${info.avatar}" alt="头像"></div>
+          <div class="conv-avatar avatar-user">游</div>
           <div class="conv-info">
             <div class="conv-nick">
               ${info.nickname}
@@ -326,29 +308,29 @@
       if (!currentConvId) return;
       const box = document.getElementById("chat-box");
       const msgRef = db.ref(`chats/${currentConvId}/messages`);
-      db.ref(`chats/${currentConvId}/info`).once("value", infoSnap => {
-        const userInfo = infoSnap.val() || { nickname: "访客", avatar: getRandomAvatar() };
-        msgRef.off("child_added");
-        msgRef.on("child_added", snap => {
-          const d = snap.val();
-          const div = document.createElement("div");
-          const isMy = d.from === (isAdmin ? "admin" : "user");
-          div.className = `msg ${isMy ? "my-msg" : "other-msg"}`;
-          const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
-          // 选择头像
-          const avatarUrl = isMy ? (isAdmin ? ADMIN_AVATAR : userInfo.avatar) : (isAdmin ? userInfo.avatar : ADMIN_AVATAR);
-          let content = `<div class="msg-avatar"><img src="${avatarUrl}" alt="头像"></div><div class="msg-bubble">`;
-          if (d.image) {
-            content += `<img src="${d.image}" class="msg-img" alt="图片" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\\'img-error\\'>图片加载失败</div>'" onclick="zoomImage(this.src)">`;
-          }
-          if (d.text) {
-            content += `<div style="margin-top:${d.image ? '8px' : '0'};">${d.text}</div>`;
-          }
-          content += `<small>${time}</small></div>`;
-          div.innerHTML = content;
-          box.appendChild(div);
-          box.scrollTop = box.scrollHeight;
-        });
+      msgRef.off("child_added");
+      msgRef.on("child_added", snap => {
+        const d = snap.val();
+        const div = document.createElement("div");
+        const isMy = d.from === (isAdmin ? "admin" : "user");
+        div.className = `msg ${isMy ? "my-msg" : "other-msg"}`;
+        const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
+
+        // 头像文字：管理员显示“客服”，访客显示“游客”
+        const avatarText = isMy ? (isAdmin ? "客服" : "游客") : (isAdmin ? "游客" : "客服");
+        const avatarClass = isMy ? (isAdmin ? "avatar-admin" : "avatar-user") : (isAdmin ? "avatar-user" : "avatar-admin");
+
+        let content = `<div class="msg-avatar ${avatarClass}">${avatarText}</div><div class="msg-bubble">`;
+        if (d.image) {
+          content += `<img src="${d.image}" class="msg-img" alt="图片" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\\'img-error\\'>图片加载失败</div>'" onclick="zoomImage(this.src)">`;
+        }
+        if (d.text) {
+          content += `<div style="margin-top:${d.image ? '8px' : '0'};">${d.text}</div>`;
+        }
+        content += `<small>${time}</small></div>`;
+        div.innerHTML = content;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
       });
     }
 
