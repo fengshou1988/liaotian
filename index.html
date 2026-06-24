@@ -3,53 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在线联系</title>
+  <title>在线客服</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <style>
     * {margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif;}
     body {max-width: 900px; margin: 20px auto; padding: 0 15px;}
     .container {display: flex; gap: 15px; height: 650px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden;}
-    .sidebar {width: 220px; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 10px; display: none;}
-    .sidebar h4 {padding: 10px; margin-bottom: 10px; color: #1e293b; font-size: 16px;}
-    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0; font-size: 14px;}
+    .sidebar {width: 240px; background: #f8fafc; border-right: 1px solid #e2e8f0; padding: 10px; display: none; position: relative;}
+    .sidebar h4 {padding: 10px; margin-bottom: 10px; color: #1e293b; font-size: 16px; display: flex; justify-content: space-between; align-items: center;}
+    .badge {background: #ef4444; color: white; font-size: 12px; padding: 2px 7px; border-radius: 10px; min-width: 20px; text-align: center;}
+    .conv-item {padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: pointer; background: #fff; border: 1px solid #e2e8f0; font-size: 14px; position: relative;}
     .conv-item.active {background: #dbeafe; border-color: #3b82f6;}
-    .conv-id {font-size: 12px; color: #64748b; margin-top: 4px;}
+    .conv-nick {font-weight: 500; margin-bottom: 2px;}
+    .conv-id {font-size: 12px; color: #64748b;}
     .chat-main {flex: 1; display: flex; flex-direction: column; background: #fff;}
-    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500; font-size: 16px;}
+    .header {padding: 12px 15px; background: #2563eb; color: white; font-weight: 500; font-size: 16px; display: flex; justify-content: space-between; align-items: center;}
     #chat-box {flex: 1; padding: 15px; overflow-y: auto; background: #fafafa;}
-    .msg {margin: 10px 0; padding: 9px 13px; border-radius: 12px; max-width: 82%; line-height: 1.5; word-wrap: break-word; position: relative;}
-    .msg small {display: block; font-size: 11px; margin-top: 4px; opacity: 0.8;}
+    .msg {margin: 10px 0; padding: 9px 13px; border-radius: 12px; max-width: 85%; line-height: 1.5; word-wrap: break-word; position: relative;}
+    .msg small {display: block; font-size: 11px; margin-top: 6px; opacity: 0.8;}
+    .msg-img {max-width: 100%; max-height: 240px; border-radius: 8px; cursor: pointer; margin-bottom: 6px;}
     .user {background: #2563eb; color: white; margin-left: auto; text-align: right;}
     .admin {background: #ffffff; border: 1px solid #e2e8f0; margin-right: auto; color: #1e293b;}
-    .input-area {display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee;}
-    input {flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px;}
+    .input-area {display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee; flex-wrap: wrap;}
+    .input-row {display: flex; gap: 8px; width: 100%; margin-top: 8px;}
+    input[type="text"] {flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px;}
+    input[type="file"] {display: none;}
+    .icon-btn {padding: 10px 12px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 18px;}
     button {padding: 10px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;}
     button:hover {background: #1d4ed8;}
     .tip {font-size: 13px; color: #666; margin: 10px 0; text-align: center;}
+    .preview-img {max-height: 60px; border-radius: 4px; margin-left: 8px; border: 1px solid #ddd;}
+    /* 注册弹窗 */
+    .modal {position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999;}
+    .modal-content {background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 360px;}
+    .modal-content h3 {margin-bottom: 15px; color: #1e293b;}
+    .modal-content input {width: 100%; margin-bottom: 12px;}
+    .hidden {display: none !important;}
   </style>
 </head>
 <body>
+  <!-- 注册弹窗 -->
+  <div id="registerModal" class="modal">
+    <div class="modal-content">
+      <h3>请先填写您的信息</h3>
+      <input type="text" id="nickname" placeholder="请输入您的昵称" required>
+      <input type="text" id="contact" placeholder="联系方式（可选）">
+      <button onclick="submitRegister()" style="width:100%;">进入聊天</button>
+    </div>
+  </div>
+
   <div class="container" id="app-container">
+    <!-- 管理员侧边栏 -->
     <div class="sidebar" id="sidebar">
-      <h4>访客对话列表</h4>
+      <h4>对话列表 <span id="totalUnread" class="badge hidden">0</span></h4>
       <div id="conv-list"></div>
     </div>
+    <!-- 聊天主区域 -->
     <div class="chat-main">
       <div class="header" id="page-title">在线联系</div>
       <div id="chat-box"></div>
       <div class="input-area">
-        <input type="text" id="msg-input" placeholder="输入消息...">
-        <button onclick="sendMessage()">发送</button>
+        <label for="imgInput" class="icon-btn">📎</label>
+        <input type="file" id="imgInput" accept="image/*">
+        <div id="previewArea" style="display: flex; align-items: center;"></div>
+        <div class="input-row">
+          <input type="text" id="msg-input" placeholder="输入消息...">
+          <button onclick="sendMessage()">发送</button>
+        </div>
       </div>
     </div>
   </div>
+
   <div class="tip">
     访客入口：当前页面<br>
     管理员入口：链接后加 ?key=MySecurePass2026
   </div>
 
   <script>
+    // ========== 配置区 ==========
     const ADMIN_KEY = "MySecurePass2026";
     const MAX_KEEP_DAYS = 7;
     const firebaseConfig = {
@@ -60,6 +92,7 @@
       messagingSenderId: "356014471592",
       appId: "1:356014471592:web:e01d2ce14cd2a93a42859d"
     };
+    // ===========================
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -67,19 +100,66 @@
     const urlParams = new URLSearchParams(window.location.search);
     const isAdmin = urlParams.get("key") === ADMIN_KEY;
     let currentConvId = null;
+    let selectedImageBase64 = null;
+    let unreadCount = {};
 
+    // 访客：检查是否已注册
     if (!isAdmin) {
-      currentConvId = localStorage.getItem("conv_id");
-      if (!currentConvId) {
-        currentConvId = "conv_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
-        localStorage.setItem("conv_id", currentConvId);
+      const saved = localStorage.getItem("userInfo");
+      if (!saved) {
+        document.getElementById("registerModal").classList.remove("hidden");
+      } else {
+        initGuest();
       }
+    } else {
+      document.getElementById("page-title").textContent = "客服管理后台";
+      document.getElementById("sidebar").style.display = "block";
+      loadConversations();
     }
 
-    document.getElementById("page-title").textContent = isAdmin ? "客服管理后台" : "在线联系";
-    if (isAdmin) document.getElementById("sidebar").style.display = "block";
+    // 提交注册
+    function submitRegister() {
+      const nickname = document.getElementById("nickname").value.trim();
+      const contact = document.getElementById("contact").value.trim();
+      if (!nickname) return alert("请填写昵称");
 
-    // 修复后的自动清理消息
+      const convId = "conv_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+      localStorage.setItem("conv_id", convId);
+      localStorage.setItem("userInfo", JSON.stringify({ nickname, contact }));
+
+      // 保存访客信息到数据库
+      db.ref(`chats/${convId}/info`).set({
+        nickname,
+        contact: contact || "未填写",
+        joinTime: Date.now()
+      });
+
+      document.getElementById("registerModal").classList.add("hidden");
+      currentConvId = convId;
+      loadMessages();
+    }
+
+    function initGuest() {
+      const convId = localStorage.getItem("conv_id");
+      if (!convId) return submitRegister();
+      currentConvId = convId;
+      document.getElementById("page-title").textContent = "在线联系";
+      loadMessages();
+    }
+
+    // 选择图片预览
+    document.getElementById("imgInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        selectedImageBase64 = ev.target.result;
+        document.getElementById("previewArea").innerHTML = `<img src="${selectedImageBase64}" class="preview-img" alt="预览">`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 自动清理旧消息
     function cleanOldMessages() {
       const cutoff = Date.now() - MAX_KEEP_DAYS * 24 * 60 * 60 * 1000;
       db.ref("chats").once("value", snapshot => {
@@ -93,25 +173,48 @@
     cleanOldMessages();
     setInterval(cleanOldMessages, 86400000);
 
+    // 管理员：加载对话列表 + 未读提醒
     function loadConversations() {
-      if (!isAdmin) return;
       const listEl = document.getElementById("conv-list");
       listEl.innerHTML = "";
       db.ref("chats").on("value", snapshot => {
         listEl.innerHTML = "";
+        let total = 0;
         snapshot.forEach(convSnap => {
           const convId = convSnap.key;
+          const info = convSnap.child("info").val() || { nickname: "访客" };
+          const unread = unreadCount[convId] || 0;
+          if (unread > 0) total += unread;
+
           const div = document.createElement("div");
           div.className = `conv-item ${convId === currentConvId ? "active" : ""}`;
-          div.innerHTML = `访客对话 <div class="conv-id">${convId.slice(5,13)}...</div>`;
+          div.innerHTML = `
+            <div class="conv-nick">${info.nickname} ${unread > 0 ? `<span class="badge" style="float:right;">${unread}</span>` : ""}</div>
+            <div class="conv-id">${convId.slice(5,13)}...</div>
+          `;
           div.onclick = () => switchConv(convId);
           listEl.appendChild(div);
+
+          // 监听新消息，更新未读
+          db.ref(`chats/${convId}/messages`).on("child_added", msgSnap => {
+            if (convId !== currentConvId && msgSnap.val().from === "user") {
+              unreadCount[convId] = (unreadCount[convId] || 0) + 1;
+              updateConvList();
+            }
+          });
         });
+        document.getElementById("totalUnread").textContent = total;
+        document.getElementById("totalUnread").classList.toggle("hidden", total === 0);
       });
+    }
+
+    function updateConvList() {
+      loadConversations();
     }
 
     function switchConv(convId) {
       currentConvId = convId;
+      unreadCount[convId] = 0; // 点击后清除未读
       document.getElementById("chat-box").innerHTML = "";
       document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
       event.currentTarget.classList.add("active");
@@ -128,7 +231,11 @@
         const div = document.createElement("div");
         div.className = `msg ${d.from}`;
         const time = new Date(d.time).toLocaleString("zh-CN", {hour:"2-digit", minute:"2-digit"});
-        div.innerHTML = `${d.text}<small>${time}</small>`;
+        let content = "";
+        if (d.image) content += `<img src="${d.image}" class="msg-img" alt="图片">`;
+        if (d.text) content += `<div>${d.text}</div>`;
+        content += `<small>${time}</small>`;
+        div.innerHTML = content;
         box.appendChild(div);
         box.scrollTop = box.scrollHeight;
       });
@@ -137,24 +244,27 @@
     function sendMessage() {
       const input = document.getElementById("msg-input");
       const text = input.value.trim();
-      if (!text || !currentConvId) return;
-      db.ref(`chats/${currentConvId}/messages`).push({
+      if (!text && !selectedImageBase64) return;
+      if (!currentConvId) return;
+
+      const msgData = {
         from: isAdmin ? "admin" : "user",
-        text: text,
         time: Date.now()
-      });
+      };
+      if (text) msgData.text = text;
+      if (selectedImageBase64) msgData.image = selectedImageBase64;
+
+      db.ref(`chats/${currentConvId}/messages`).push(msgData);
+
       input.value = "";
+      selectedImageBase64 = null;
+      document.getElementById("previewArea").innerHTML = "";
+      document.getElementById("imgInput").value = "";
     }
 
     document.getElementById("msg-input").addEventListener("keydown", e => {
       if (e.key === "Enter") sendMessage();
     });
-
-    if (isAdmin) {
-      loadConversations();
-    } else {
-      loadMessages();
-    }
   </script>
 </body>
 </html>
